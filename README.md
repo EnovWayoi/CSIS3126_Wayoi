@@ -25,3 +25,5 @@ Basic statistics and game history;
 In-app documentation.
 
 The plan is to build the core functionality first (quiz creation, gameplay with page refreshes) and add the real-time features with Flask-SocketIO once the foundation is solid.
+
+More information to be given here shortly.
