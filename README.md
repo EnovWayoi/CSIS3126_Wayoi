@@ -12,7 +12,7 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 
 \- \*\*Course:\*\* CSIS3126 - Design Project I
 
-\- \*\*Semester:\*\* Spring 2025-2026
+\- \*\*Semester:\*\* Spring 2026
 
 \- \*\*Institution:\*\* Johnson \& Wales University
 
