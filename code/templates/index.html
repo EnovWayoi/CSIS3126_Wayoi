@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Quiz Platform{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 text-center">
+        <h1 class="display-4 mb-4">🎯 Interactive Quiz Platform</h1>
+        <p class="lead mb-4">
+            Create engaging quizzes, host live game sessions, and challenge your friends!
+        </p>
+        
+        <div class="row mt-5">
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h3>📝 Create</h3>
+                        <p>Build custom quizzes with multiple question types</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h3>🎮 Host</h3>
+                        <p>Run live quiz games with real-time leaderboards</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h3>🏆 Play</h3>
+                        <p>Join games and compete with other players</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-5">
+            <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg me-3">Get Started</a>
+            <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg">Login</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
