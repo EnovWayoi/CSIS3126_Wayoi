@@ -1,4 +1,6 @@
+```text
 Flask==3.0.0
 Flask-Login==0.6.3
 mysql-connector-python==8.2.0
 Werkzeug==3.0.1
+```

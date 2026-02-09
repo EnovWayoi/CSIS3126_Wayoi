@@ -1,3 +1,4 @@
+```sql
 -- ============================================
 -- Interactive Quiz Show Platform
 -- Database Schema (Ver. 2)
@@ -185,3 +186,4 @@ UNION ALL
 SELECT 'session_participants', COUNT(*) FROM session_participants
 UNION ALL
 SELECT 'player_answers', COUNT(*) FROM player_answers;
+```
