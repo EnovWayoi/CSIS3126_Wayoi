@@ -1,0 +1,454 @@
+# Weekly Progress Log
+## Interactive Quiz Show Platform
+
+**Student:** Enov Wayoi 
+**Course:** CSIS3126 - Design Project I  
+**Instructor:** Professor Jeffrey Tagen
+
+---
+
+## Week 1
+
+### Work Completed
+- ✅ Project proposal created and submitted
+- ✅ GitHub repository created and shared with professor (username: jtagen)
+- ✅ Initial README.md created
+- ✅ Technology stack selected (Python/Flask/MySQL)
+- ✅ Project idea finalized: Interactive Quiz Show Platform
+
+### Progress Summary
+Created initial project structure and decided on Interactive Quiz Show Platform as the project topic. Selected technology stack after comparing Python/Flask vs PHP options. Set up GitHub repository for version control and collaboration.
+
+### Impediments/Challenges
+- Initially considered file sharing app but switched to quiz platform for better demonstration value
+- Needed to compare XAMPP vs standalone MySQL
+- Learning Git basics for version control
+
+### Changes to Plan
+- Switched project idea from file sharing to Interactive Quiz Show Platform
+- Decided to focus on web-only platform instead of native mobile apps
+
+### Next Week Goals
+- Complete Software Requirements Specification (SRS)
+- Create Entity Relationship Diagram (ERD)
+- Begin database design documentation
+- Set up development environment
+
+---
+
+## Week 2
+
+### Work Completed
+- ✅ Software Requirements Specification document completed
+- ✅ All functional requirements documented
+- ✅ Non-functional requirements specified
+- ✅ Use cases and user stories documented
+- ✅ System requirements defined
+
+### Progress Summary
+Documented comprehensive software requirements including all features, user roles, system constraints, and success criteria. SRS now serves as blueprint for entire project development.
+
+### Impediments/Challenges
+- Understanding IEEE SRS format and standards
+- Defining clear acceptance criteria for each requirement
+- Estimating realistic scope for 16-week timeline
+- Balancing feature richness with achievability
+
+### Changes to Plan
+- Removed social features based on professor recommendation to keep scope manageable
+
+### Next Week Goals
+- Design complete database schema
+- Create Entity Relationship Diagram
+- Normalize database to 3NF
+- Document all table relationships
+
+---
+
+## Week 3
+
+### Work Completed
+- ✅ Entity Relationship Diagram (ERD) created
+- ✅ Database schema designed with 6 tables
+- ✅ All table relationships documented
+- ✅ Foreign key constraints defined
+- ✅ Database normalized to Third Normal Form (3NF)
+- ✅ SQL schema file created (database_schema.sql)
+- ✅ MySQL installed and configured
+- ✅ Database implemented - all tables created successfully
+- ✅ Sample data inserted for testing
+
+### Progress Summary
+Completed full database design and implementation. All tables created with proper relationships, constraints, and indexes. Database successfully tested with sample data.
+
+### Impediments/Challenges
+- MySQL installation issues - XAMPP had port conflicts
+- Learning SQL foreign key syntax and CASCADE delete behavior
+- Understanding proper database normalization rules
+- Deciding on ENUM vs separate lookup tables for status fields
+
+### Changes to Plan
+- Used standalone MySQL instead of XAMPP due to technical issues
+
+### Next Week Goals
+- Set up Flask application structure
+- Create basic routing and templates
+- Establish database connection from Flask
+- Test database connectivity
+
+---
+
+## Week 4
+
+### Work Completed
+- ✅ Flask application scaffold created
+- ✅ Project structure organized (app.py, templates/, static/, docs/)
+- ✅ Database connection established using mysql-connector-python
+- ✅ Configuration file created (config.py)
+- ✅ Basic routing implemented
+- ✅ Database connectivity tested successfully
+- ✅ All Flask dependencies installed
+- ✅ All documentation uploaded to GitHub
+- ✅ Software Design Document created
+- ✅ Test Plan documented
+
+### Progress Summary
+Set up complete Flask application foundation with verified database connectivity. Created organized project structure following best practices. All core documentation completed.
+
+### Impediments/Challenges
+- Learning Flask application structure and routing
+- Configuring database connection with proper error handling
+- Understanding PyCharm workflow
+- Managing configuration files (keeping passwords out of Git)
+
+### Changes to Plan
+- Added comprehensive documentation after professor feedback
+
+### Next Week Goals
+- Implement user registration functionality
+- Implement user login functionality
+- Create registration and login HTML templates
+- Implement password hashing
+- Set up Flask-Login for session management
+
+---
+
+## Week 5
+
+### Work Completed
+- ✅ User authentication module fully implemented
+- ✅ Registration page with form validation
+- ✅ Login page with authentication
+- ✅ Password hashing using Werkzeug
+- ✅ Flask-Login integration for session management
+- ✅ User class created with UserMixin
+- ✅ Dashboard page created
+- ✅ Base template created with Bootstrap 5 navigation
+- ✅ Landing page designed
+- ✅ Logout functionality implemented
+- ✅ Protected routes using @login_required decorator
+- ✅ Flash messages for user feedback
+- ✅ Custom CSS styling added
+
+### Progress Summary
+Successfully implemented complete user authentication system. Users can register new accounts, log in securely with hashed passwords, access personalized dashboard, and log out. All templates use Bootstrap 5 for responsive design.
+
+### Impediments/Challenges
+- Learning Flask-Login library and UserMixin class
+- Understanding Jinja2 templating syntax
+- Implementing proper password hashing and verification
+- Managing user sessions across requests
+- Bootstrap CSS framework learning curve
+
+### Changes to Plan
+None
+
+### Next Week Goals
+- Implement quiz creation functionality
+- Build quiz creation form with question management
+- Support multiple question types
+- Create quiz editing functionality
+- Implement quiz deletion
+
+---
+
+## Week 6
+
+### Work Completed
+- [ ] Quiz creation module
+- [ ] Quiz creation form
+- [ ] Question management interface
+- [ ] Multiple choice question support
+- [ ] True/false question support
+- [ ] Fill-in-the-blank question support
+- [ ] Quiz editing functionality
+- [ ] Quiz deletion with confirmation
+- [ ] Question addition/editing/deletion
+- [ ] Dashboard updated to display quiz list
+
+### Progress Summary
+[To be filled in]
+
+### Impediments/Challenges
+[To be filled in]
+
+### Changes to Plan
+[To be filled in]
+
+### Next Week Goals
+[To be filled in]
+
+---
+
+## Week 7
+
+### Work Completed
+- [ ] Checkpoint 1: Demonstration of requirements
+- [ ] Comprehensive testing of authentication system
+- [ ] Comprehensive testing of quiz creation/management
+- [ ] Bug fixes
+- [ ] Created demo quizzes for presentation
+- [ ] UI/UX improvements
+- [ ] Error handling improvements
+- [ ] Documentation updates
+
+### Progress Summary
+[To be filled in]
+
+### Impediments/Challenges
+[To be filled in]
+
+### Changes to Plan
+[To be filled in]
+
+### Next Week Goals
+[To be filled in]
+
+---
+
+## Week 8
+
+### Work Completed
+- [ ] Game session module implemented
+- [ ] Session code generation
+- [ ] Game session creation
+- [ ] Session status management
+- [ ] Host game control screen
+- [ ] Join game form for players
+- [ ] Session validation
+- [ ] Player lobby
+- [ ] Basic game state management
+- [ ] Session participants tracking
+
+### Progress Summary
+[To be filled in]
+
+### Impediments/Challenges
+[To be filled in]
+
+### Changes to Plan
+[To be filled in]
+
+### Next Week Goals
+[To be filled in]
+
+---
+
+## Week 9
+
+### Work Completed
+- [ ] Question display for players
+- [ ] Answer submission functionality
+- [ ] Answer validation logic
+- [ ] Scoring system
+- [ ] Points calculation
+- [ ] Player scores updated in database
+- [ ] Basic leaderboard display
+- [ ] "Next question" functionality
+- [ ] Question progression tracking
+- [ ] End game functionality
+- [ ] Final results screen
+
+### Progress Summary
+[To be filled in]
+
+### Impediments/Challenges
+[To be filled in]
+
+### Changes to Plan
+[To be filled in]
+
+### Next Week Goals
+[To be filled in]
+
+---
+
+## Week 10
+
+### Work Completed
+- [ ] Flask-SocketIO installed and configured
+- [ ] WebSocket connection established
+- [ ] Socket event handlers created
+- [ ] Real-time player count updates
+- [ ] Live player list
+- [ ] Basic real-time question synchronization
+- [ ] Broadcasting events to players
+- [ ] Room-based socket communication
+- [ ] JavaScript client-side socket handling
+
+### Progress Summary
+[To be filled in]
+
+### Impediments/Challenges
+[To be filled in]
+
+### Changes to Plan
+[To be filled in]
+
+### Next Week Goals
+[To be filled in]
+
+---
+
+## Week 11
+
+### Work Completed
+- [ ] Real-time leaderboard updates
+- [ ] Question synchronization across all players
+- [ ] Countdown timer with live updates
+- [ ] Answer submission triggers leaderboard refresh
+- [ ] Host can advance all players to next question
+- [ ] Game end notification broadcast
+- [ ] Answer feedback shown immediately
+- [ ] Points animation
+- [ ] Socket reconnection handling
+
+### Progress Summary
+[To be filled in]
+
+### Impediments/Challenges
+[To be filled in]
+
+### Changes to Plan
+[To be filled in]
+
+### Next Week Goals
+[To be filled in]
+
+---
+
+## Week 12
+
+### Work Completed
+- [ ] Checkpoint 2: Demonstration of testing
+- [ ] Unit tests written for authentication
+- [ ] Unit tests written for quiz management
+- [ ] Unit tests written for game session logic
+- [ ] Integration tests
+- [ ] System testing with concurrent players
+- [ ] Performance testing
+- [ ] Security testing
+- [ ] Test results documented
+- [ ] Bugs identified and fixed
+
+### Progress Summary
+[To be filled in]
+
+### Impediments/Challenges
+[To be filled in]
+
+### Changes to Plan
+[To be filled in]
+
+### Next Week Goals
+[To be filled in]
+
+---
+
+## Week 13
+
+### Work Completed
+- [ ] UI/UX improvements across all pages
+- [ ] Loading spinners added
+- [ ] Mobile responsiveness improved
+- [ ] Help documentation added
+- [ ] Tutorial for first-time users
+- [ ] Error messages improved
+- [ ] Visual design polish
+- [ ] Success animations
+- [ ] Button states and hover effects
+- [ ] Accessibility improvements
+
+### Progress Summary
+[To be filled in]
+
+### Impediments/Challenges
+[To be filled in]
+
+### Changes to Plan
+[To be filled in]
+
+### Next Week Goals
+[To be filled in]
+
+---
+
+## Week 14
+
+### Work Completed
+- [ ] Code refactoring
+- [ ] Code comments and docstrings added
+- [ ] Performance optimization
+- [ ] Fixed remaining bugs
+- [ ] Database indexes added
+- [ ] Security review and hardening
+- [ ] HTTPS configuration prepared
+- [ ] Environment variables configured
+- [ ] Error logging implemented
+- [ ] Input validation strengthened
+
+### Progress Summary
+[To be filled in]
+
+### Impediments/Challenges
+[To be filled in]
+
+### Changes to Plan
+[To be filled in]
+
+### Next Week Goals
+[To be filled in]
+
+---
+
+## Week 15
+
+### Work Completed
+- [ ] All documentation finalized
+- [ ] README.md complete
+- [ ] User manual created
+- [ ] Technical documentation completed
+- [ ] API documentation added
+- [ ] Installation guide written
+- [ ] Troubleshooting guide created
+- [ ] Weekly progress logs updated
+- [ ] GitHub repository organized
+- [ ] Presentation slides created
+- [ ] Live demo prepared and rehearsed
+- [ ] Backup demo video recorded
+- [ ] Final testing completed
+
+### Progress Summary
+[To be filled in]
+
+### Impediments/Challenges
+[To be filled in]
+
+### Changes to Plan
+[To be filled in]
+
+### Next Week Goals
+- Week 16: Final Presentation
+
+---
+
