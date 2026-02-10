@@ -149,9 +149,11 @@ Set up complete Flask application foundation with verified database connectivity
 - ✅ Protected routes using @login_required decorator
 - ✅ Flash messages for user feedback
 - ✅ Custom CSS styling added
+- ✅ Database schema refactored and documented (`docs/database_schema.md`)
+- ✅ Entity Relationship Diagram (ERD) generated and consolidated (`docs/Database_Design.md`)
 
 ### Progress Summary
-Successfully implemented complete user authentication system. Users can register new accounts, log in securely with hashed passwords, access personalized dashboard, and log out. All templates use Bootstrap 5 for responsive design.
+Successfully implemented complete user authentication system. Users can register new accounts, log in securely with hashed passwords, access personalized dashboard, and log out. All templates use Bootstrap 5 for responsive design. Additionally, formalized database documentation with a comprehensive design document and updated schema.
 
 ### Impediments/Challenges
 - Learning Flask-Login library and UserMixin class
