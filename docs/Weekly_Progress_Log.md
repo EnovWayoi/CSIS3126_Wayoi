@@ -177,28 +177,40 @@ None
 ## Week 6
 
 ### Work Completed
-- [ ] Quiz creation module
-- [ ] Quiz creation form
-- [ ] Question management interface
-- [ ] Multiple choice question support
-- [ ] True/false question support
-- [ ] Fill-in-the-blank question support
-- [ ] Quiz editing functionality
-- [ ] Quiz deletion with confirmation
-- [ ] Question addition/editing/deletion
-- [ ] Dashboard updated to display quiz list
+- ✅ Quiz creation module implemented
+- ✅ Quiz creation form with title, description, and public/private toggle
+- ✅ Question management interface (add, edit, delete questions)
+- ✅ Multiple choice question support (4 options A–D)
+- ✅ True/false question support
+- ✅ Fill-in-the-blank question support
+- ✅ Quiz editing functionality (update title, description, visibility)
+- ✅ Quiz deletion with confirmation modal
+- ✅ Question addition with auto-incrementing order
+- ✅ Question editing with pre-populated form
+- ✅ Question deletion with confirmation modal
+- ✅ Dashboard updated to display quiz list with working links
+- ✅ Quiz view page (read-only display of quiz and questions)
+- ✅ Ownership verification on all quiz/question routes
+- ✅ Dynamic form JavaScript for question type toggling
 
 ### Progress Summary
-[To be filled in]
+Implemented complete quiz creation and management system. Users can create quizzes, add questions of three different types (multiple choice, true/false, fill-in-the-blank), edit and delete both quizzes and individual questions. All routes are protected with login requirement and quiz ownership verification. Dashboard now shows quiz cards with question counts, public/private badges, and functional Edit/View/Delete buttons with Bootstrap confirmation modals.
 
 ### Impediments/Challenges
-[To be filled in]
+- JavaScript toggling for different question types required careful handling of form field names to ensure correct data submission
+- Managing multiple correct answer input fields (select vs text input) across question types
+- Bootstrap modal integration for delete confirmations on dynamically generated content
 
 ### Changes to Plan
-[To be filled in]
+None
 
 ### Next Week Goals
-[To be filled in]
+- Checkpoint 1: Demonstration of requirements
+- Comprehensive testing of authentication system
+- Comprehensive testing of quiz creation/management
+- Bug fixes and UI/UX improvements
+- Create demo quizzes for presentation
+
 
 ---
 

@@ -19,6 +19,21 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 - **Real-time:** Flask-SocketIO
 - **Authentication:** Flask-Login
 
+## Key Features
+
+### 👤 User Authentication
+- Secure registration and login
+- Password hashing with bcrypt
+- User session management
+- Personalized dashboard
+
+### 📝 Quiz Management
+- **Create Quizzes**: Users can create and manage their own quizzes
+- **Question Types**: Support for Multiple Choice, True/False, and Fill-in-the-blank
+- **Public/Private**: Option to make quizzes public or keep them private
+- **Rich Editor**: Easy-to-use interface for adding and editing questions
+
+
 ## Current Status
 
 ✅ Database structure created & normalized (3NF)
@@ -27,6 +42,8 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 ✅ Password Hashing & Security integration
 ✅ User Dashboard custom view implemented
 ✅ Bootstrap 5 UI integration
+✅ Quiz Creation & Management (CRUD)
+✅ Question Management (Multiple Choice, True/False, Fill-in-Blank)
 ✅ Comprehensive Documentation (SRS, ERD, Progress Logs)
 
 ## Setup Instructions
