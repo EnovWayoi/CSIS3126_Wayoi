@@ -219,6 +219,380 @@ def dashboard():
         return render_template('dashboard.html', quizzes=[])
 
 
+# =============================================
+# Quiz Management Routes
+# =============================================
+
+# Create Quiz
+@app.route('/quiz/create', methods=['GET', 'POST'])
+@login_required
+def create_quiz():
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        description = request.form.get('description', '').strip()
+        is_public = 1 if request.form.get('is_public') else 0
+
+        if not title:
+            flash('Quiz title is required', 'danger')
+            return render_template('create_quiz.html')
+
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO quizzes (title, description, created_by, is_public) VALUES (%s, %s, %s, %s)",
+                (title, description, current_user.id, is_public)
+            )
+            conn.commit()
+            quiz_id = cursor.lastrowid
+            cursor.close()
+            conn.close()
+
+            flash('Quiz created successfully! Now add some questions.', 'success')
+            return redirect(url_for('edit_quiz', quiz_id=quiz_id))
+
+        except Exception as e:
+            flash(f'Error creating quiz: {str(e)}', 'danger')
+            return render_template('create_quiz.html')
+
+    return render_template('create_quiz.html')
+
+
+# View Quiz (read-only)
+@app.route('/quiz/<int:quiz_id>')
+@login_required
+def view_quiz(quiz_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+        quiz = cursor.fetchone()
+
+        if not quiz:
+            flash('Quiz not found', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('dashboard'))
+
+        if quiz['created_by'] != int(current_user.id):
+            flash('You do not have permission to view this quiz', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('dashboard'))
+
+        cursor.execute(
+            "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC",
+            (quiz_id,)
+        )
+        questions = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        return render_template('view_quiz.html', quiz=quiz, questions=questions)
+
+    except Exception as e:
+        flash(f'Error loading quiz: {str(e)}', 'danger')
+        return redirect(url_for('dashboard'))
+
+
+# Edit Quiz
+@app.route('/quiz/<int:quiz_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_quiz(quiz_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+        quiz = cursor.fetchone()
+
+        if not quiz:
+            flash('Quiz not found', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('dashboard'))
+
+        if quiz['created_by'] != int(current_user.id):
+            flash('You do not have permission to edit this quiz', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('dashboard'))
+
+        if request.method == 'POST':
+            title = request.form.get('title', '').strip()
+            description = request.form.get('description', '').strip()
+            is_public = 1 if request.form.get('is_public') else 0
+
+            if not title:
+                flash('Quiz title is required', 'danger')
+            else:
+                cursor.execute(
+                    "UPDATE quizzes SET title = %s, description = %s, is_public = %s WHERE quiz_id = %s",
+                    (title, description, is_public, quiz_id)
+                )
+                conn.commit()
+                flash('Quiz updated successfully!', 'success')
+
+                # Refresh quiz data
+                cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+                quiz = cursor.fetchone()
+
+        # Get questions for this quiz
+        cursor.execute(
+            "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC",
+            (quiz_id,)
+        )
+        questions = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        return render_template('edit_quiz.html', quiz=quiz, questions=questions)
+
+    except Exception as e:
+        flash(f'Error: {str(e)}', 'danger')
+        return redirect(url_for('dashboard'))
+
+
+# Delete Quiz
+@app.route('/quiz/<int:quiz_id>/delete', methods=['POST'])
+@login_required
+def delete_quiz(quiz_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+        quiz = cursor.fetchone()
+
+        if not quiz:
+            flash('Quiz not found', 'danger')
+        elif quiz['created_by'] != int(current_user.id):
+            flash('You do not have permission to delete this quiz', 'danger')
+        else:
+            cursor.execute("DELETE FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+            conn.commit()
+            flash('Quiz deleted successfully', 'success')
+
+        cursor.close()
+        conn.close()
+
+    except Exception as e:
+        flash(f'Error deleting quiz: {str(e)}', 'danger')
+
+    return redirect(url_for('dashboard'))
+
+
+# =============================================
+# Question Management Routes
+# =============================================
+
+# Add Question
+@app.route('/quiz/<int:quiz_id>/question/add', methods=['GET', 'POST'])
+@login_required
+def add_question(quiz_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+        quiz = cursor.fetchone()
+
+        if not quiz:
+            flash('Quiz not found', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('dashboard'))
+
+        if quiz['created_by'] != int(current_user.id):
+            flash('You do not have permission to modify this quiz', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('dashboard'))
+
+        if request.method == 'POST':
+            question_text = request.form.get('question_text', '').strip()
+            question_type = request.form.get('question_type', 'multiple_choice')
+            correct_answer = request.form.get('correct_answer', '').strip()
+            option_a = request.form.get('option_a', '').strip() or None
+            option_b = request.form.get('option_b', '').strip() or None
+            option_c = request.form.get('option_c', '').strip() or None
+            option_d = request.form.get('option_d', '').strip() or None
+            points = int(request.form.get('points', 10))
+            time_limit = int(request.form.get('time_limit', 30))
+
+            if not question_text:
+                flash('Question text is required', 'danger')
+                return render_template('add_question.html', quiz=quiz)
+
+            if not correct_answer:
+                flash('Correct answer is required', 'danger')
+                return render_template('add_question.html', quiz=quiz)
+
+            # Handle true/false options
+            if question_type == 'true_false':
+                option_a = 'True'
+                option_b = 'False'
+                option_c = None
+                option_d = None
+
+            # Handle fill_blank options
+            if question_type == 'fill_blank':
+                option_a = None
+                option_b = None
+                option_c = None
+                option_d = None
+
+            # Get next question order
+            cursor.execute(
+                "SELECT COALESCE(MAX(question_order), 0) + 1 AS next_order FROM questions WHERE quiz_id = %s",
+                (quiz_id,)
+            )
+            next_order = cursor.fetchone()['next_order']
+
+            cursor.execute(
+                """INSERT INTO questions
+                   (quiz_id, question_text, question_type, correct_answer,
+                    option_a, option_b, option_c, option_d, points, time_limit, question_order)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (quiz_id, question_text, question_type, correct_answer,
+                 option_a, option_b, option_c, option_d, points, time_limit, next_order)
+            )
+            conn.commit()
+
+            flash('Question added successfully!', 'success')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('edit_quiz', quiz_id=quiz_id))
+
+        cursor.close()
+        conn.close()
+        return render_template('add_question.html', quiz=quiz)
+
+    except Exception as e:
+        flash(f'Error adding question: {str(e)}', 'danger')
+        return redirect(url_for('edit_quiz', quiz_id=quiz_id))
+
+
+# Edit Question
+@app.route('/quiz/<int:quiz_id>/question/<int:question_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_question(quiz_id, question_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Verify quiz ownership
+        cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+        quiz = cursor.fetchone()
+
+        if not quiz or quiz['created_by'] != int(current_user.id):
+            flash('You do not have permission to modify this quiz', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('dashboard'))
+
+        cursor.execute(
+            "SELECT * FROM questions WHERE question_id = %s AND quiz_id = %s",
+            (question_id, quiz_id)
+        )
+        question = cursor.fetchone()
+
+        if not question:
+            flash('Question not found', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('edit_quiz', quiz_id=quiz_id))
+
+        if request.method == 'POST':
+            question_text = request.form.get('question_text', '').strip()
+            question_type = request.form.get('question_type', 'multiple_choice')
+            correct_answer = request.form.get('correct_answer', '').strip()
+            option_a = request.form.get('option_a', '').strip() or None
+            option_b = request.form.get('option_b', '').strip() or None
+            option_c = request.form.get('option_c', '').strip() or None
+            option_d = request.form.get('option_d', '').strip() or None
+            points = int(request.form.get('points', 10))
+            time_limit = int(request.form.get('time_limit', 30))
+
+            if not question_text or not correct_answer:
+                flash('Question text and correct answer are required', 'danger')
+                return render_template('edit_question.html', quiz=quiz, question=question)
+
+            if question_type == 'true_false':
+                option_a = 'True'
+                option_b = 'False'
+                option_c = None
+                option_d = None
+
+            if question_type == 'fill_blank':
+                option_a = None
+                option_b = None
+                option_c = None
+                option_d = None
+
+            cursor.execute(
+                """UPDATE questions SET
+                   question_text = %s, question_type = %s, correct_answer = %s,
+                   option_a = %s, option_b = %s, option_c = %s, option_d = %s,
+                   points = %s, time_limit = %s
+                   WHERE question_id = %s AND quiz_id = %s""",
+                (question_text, question_type, correct_answer,
+                 option_a, option_b, option_c, option_d,
+                 points, time_limit, question_id, quiz_id)
+            )
+            conn.commit()
+
+            flash('Question updated successfully!', 'success')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('edit_quiz', quiz_id=quiz_id))
+
+        cursor.close()
+        conn.close()
+        return render_template('edit_question.html', quiz=quiz, question=question)
+
+    except Exception as e:
+        flash(f'Error editing question: {str(e)}', 'danger')
+        return redirect(url_for('edit_quiz', quiz_id=quiz_id))
+
+
+# Delete Question
+@app.route('/quiz/<int:quiz_id>/question/<int:question_id>/delete', methods=['POST'])
+@login_required
+def delete_question(quiz_id, question_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Verify quiz ownership
+        cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+        quiz = cursor.fetchone()
+
+        if not quiz or quiz['created_by'] != int(current_user.id):
+            flash('You do not have permission to modify this quiz', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('dashboard'))
+
+        cursor.execute(
+            "DELETE FROM questions WHERE question_id = %s AND quiz_id = %s",
+            (question_id, quiz_id)
+        )
+        conn.commit()
+
+        flash('Question deleted successfully', 'success')
+        cursor.close()
+        conn.close()
+
+    except Exception as e:
+        flash(f'Error deleting question: {str(e)}', 'danger')
+
+    return redirect(url_for('edit_quiz', quiz_id=quiz_id))
+
+
 # Test routes (keep these for now)
 @app.route('/test-db')
 def test_db():
