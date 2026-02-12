@@ -7,44 +7,83 @@
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>My Quizzes</h2>
-            <a href="#" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> Create New Quiz
+            <a href="{{ url_for('create_quiz') }}" class="btn btn-primary">
+                + Create New Quiz
             </a>
         </div>
-        
+
         {% if quizzes %}
-            <div class="row">
-                {% for quiz in quizzes %}
-                <div class="col-md-6 col-lg-4 mb-4">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ quiz.title }}</h5>
-                            <p class="card-text text-muted">
-                                {{ quiz.description[:100] }}{% if quiz.description|length > 100 %}...{% endif %}
-                            </p>
-                            <p class="text-muted small">
-                                <strong>{{ quiz.question_count }}</strong> questions
-                                <br>
-                                Created: {{ quiz.created_at.strftime('%b %d, %Y') }}
-                            </p>
-                        </div>
-                        <div class="card-footer bg-white">
-                            <div class="btn-group w-100" role="group">
-                                <a href="#" class="btn btn-sm btn-outline-primary">Edit</a>
-                                <a href="#" class="btn btn-sm btn-success">Start Game</a>
-                                <button class="btn btn-sm btn-outline-danger">Delete</button>
-                            </div>
+        <div class="row">
+            {% for quiz in quizzes %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <a href="{{ url_for('view_quiz', quiz_id=quiz.quiz_id) }}" class="text-decoration-none">
+                                {{ quiz.title }}
+                            </a>
+                        </h5>
+                        <p class="card-text text-muted">
+                            {{ quiz.description[:100] if quiz.description }}{% if quiz.description and
+                            quiz.description|length > 100 %}...{% endif %}
+                        </p>
+                        <p class="text-muted small">
+                            <strong>{{ quiz.question_count }}</strong> questions
+                            {% if quiz.is_public %}
+                            <span class="badge bg-success ms-2">Public</span>
+                            {% else %}
+                            <span class="badge bg-secondary ms-2">Private</span>
+                            {% endif %}
+                            <br>
+                            Created: {{ quiz.created_at.strftime('%b %d, %Y') }}
+                        </p>
+                    </div>
+                    <div class="card-footer bg-white">
+                        <div class="btn-group w-100" role="group">
+                            <a href="{{ url_for('edit_quiz', quiz_id=quiz.quiz_id) }}"
+                                class="btn btn-sm btn-outline-primary">Edit</a>
+                            <a href="{{ url_for('view_quiz', quiz_id=quiz.quiz_id) }}"
+                                class="btn btn-sm btn-success">View</a>
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal"
+                                data-bs-target="#deleteQuiz{{ quiz.quiz_id }}">
+                                Delete
+                            </button>
                         </div>
                     </div>
                 </div>
-                {% endfor %}
             </div>
+
+            <!-- Delete Quiz Modal -->
+            <div class="modal fade" id="deleteQuiz{{ quiz.quiz_id }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Delete Quiz</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Are you sure you want to delete <strong>"{{ quiz.title }}"</strong>?</p>
+                            <p class="text-danger small">This will also delete all {{ quiz.question_count }} questions
+                                in this quiz. This action cannot be undone.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <form method="POST" action="{{ url_for('delete_quiz', quiz_id=quiz.quiz_id) }}"
+                                class="d-inline">
+                                <button type="submit" class="btn btn-danger">Delete Quiz</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
         {% else %}
-            <div class="text-center py-5">
-                <h4 class="text-muted">No quizzes yet</h4>
-                <p>Create your first quiz to get started!</p>
-                <a href="#" class="btn btn-primary">Create Quiz</a>
-            </div>
+        <div class="text-center py-5">
+            <h4 class="text-muted">No quizzes yet</h4>
+            <p>Create your first quiz to get started!</p>
+            <a href="{{ url_for('create_quiz') }}" class="btn btn-primary">Create Quiz</a>
+        </div>
         {% endif %}
     </div>
 </div>

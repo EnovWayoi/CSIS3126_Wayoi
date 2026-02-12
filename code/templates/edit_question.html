@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Question - {{ quiz.title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">✏️ Edit Question</h4>
+                <small>Quiz: {{ quiz.title }}</small>
+            </div>
+            <div class="card-body">
+                <form method="POST"
+                    action="{{ url_for('edit_question', quiz_id=quiz.quiz_id, question_id=question.question_id) }}">
+                    <!-- Question Type -->
+                    <div class="mb-3">
+                        <label for="question_type" class="form-label">Question Type <span
+                                class="text-danger">*</span></label>
+                        <select class="form-select" id="question_type" name="question_type" onchange="toggleOptions()">
+                            <option value="multiple_choice" {% if question.question_type=='multiple_choice' %}selected{%
+                                endif %}>Multiple Choice</option>
+                            <option value="true_false" {% if question.question_type=='true_false' %}selected{% endif %}>
+                                True / False</option>
+                            <option value="fill_blank" {% if question.question_type=='fill_blank' %}selected{% endif %}>
+                                Fill in the Blank</option>
+                        </select>
+                    </div>
+
+                    <!-- Question Text -->
+                    <div class="mb-3">
+                        <label for="question_text" class="form-label">Question Text <span
+                                class="text-danger">*</span></label>
+                        <textarea class="form-control" id="question_text" name="question_text" rows="3"
+                            required>{{ question.question_text }}</textarea>
+                    </div>
+
+                    <!-- Multiple Choice Options -->
+                    <div id="mc_options">
+                        <div class="mb-3">
+                            <label for="option_a" class="form-label">Option A</label>
+                            <input type="text" class="form-control" id="option_a" name="option_a"
+                                value="{{ question.option_a or '' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="option_b" class="form-label">Option B</label>
+                            <input type="text" class="form-control" id="option_b" name="option_b"
+                                value="{{ question.option_b or '' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="option_c" class="form-label">Option C</label>
+                            <input type="text" class="form-control" id="option_c" name="option_c"
+                                value="{{ question.option_c or '' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="option_d" class="form-label">Option D</label>
+                            <input type="text" class="form-control" id="option_d" name="option_d"
+                                value="{{ question.option_d or '' }}">
+                        </div>
+                    </div>
+
+                    <!-- Correct Answer -->
+                    <div class="mb-3">
+                        <label for="correct_answer" class="form-label">Correct Answer <span
+                                class="text-danger">*</span></label>
+                        <div id="correct_answer_mc">
+                            <select class="form-select" name="correct_answer" id="correct_answer_select">
+                                <option value="A" {% if question.correct_answer=='A' and
+                                    question.question_type=='multiple_choice' %}selected{% endif %}>A</option>
+                                <option value="B" {% if question.correct_answer=='B' and
+                                    question.question_type=='multiple_choice' %}selected{% endif %}>B</option>
+                                <option value="C" {% if question.correct_answer=='C' and
+                                    question.question_type=='multiple_choice' %}selected{% endif %}>C</option>
+                                <option value="D" {% if question.correct_answer=='D' and
+                                    question.question_type=='multiple_choice' %}selected{% endif %}>D</option>
+                            </select>
+                        </div>
+                        <div id="correct_answer_tf" style="display:none;">
+                            <select class="form-select" name="correct_answer_tf">
+                                <option value="A" {% if question.correct_answer=='A' and
+                                    question.question_type=='true_false' %}selected{% endif %}>True</option>
+                                <option value="B" {% if question.correct_answer=='B' and
+                                    question.question_type=='true_false' %}selected{% endif %}>False</option>
+                            </select>
+                        </div>
+                        <div id="correct_answer_fb" style="display:none;">
+                            <input type="text" class="form-control" name="correct_answer_fb"
+                                value="{% if question.question_type == 'fill_blank' %}{{ question.correct_answer }}{% endif %}">
+                        </div>
+                    </div>
+
+                    <!-- Points and Time -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="points" class="form-label">Points</label>
+                            <input type="number" class="form-control" id="points" name="points"
+                                value="{{ question.points }}" min="1" max="100">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="time_limit" class="form-label">Time Limit (seconds)</label>
+                            <input type="number" class="form-control" id="time_limit" name="time_limit"
+                                value="{{ question.time_limit }}" min="5" max="300">
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('edit_quiz', quiz_id=quiz.quiz_id) }}"
+                            class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleOptions() {
+        const type = document.getElementById('question_type').value;
+        const mcOptions = document.getElementById('mc_options');
+        const correctMC = document.getElementById('correct_answer_mc');
+        const correctTF = document.getElementById('correct_answer_tf');
+        const correctFB = document.getElementById('correct_answer_fb');
+
+        // Disable all hidden inputs so they don't submit
+        document.getElementById('correct_answer_select').disabled = true;
+        document.querySelector('[name="correct_answer_tf"]').disabled = true;
+        document.querySelector('[name="correct_answer_fb"]').disabled = true;
+
+        if (type === 'multiple_choice') {
+            mcOptions.style.display = 'block';
+            correctMC.style.display = 'block';
+            correctTF.style.display = 'none';
+            correctFB.style.display = 'none';
+            document.getElementById('correct_answer_select').disabled = false;
+            document.getElementById('correct_answer_select').name = 'correct_answer';
+        } else if (type === 'true_false') {
+            mcOptions.style.display = 'none';
+            correctMC.style.display = 'none';
+            correctTF.style.display = 'block';
+            correctFB.style.display = 'none';
+            document.querySelector('[name="correct_answer_tf"]').disabled = false;
+            document.querySelector('[name="correct_answer_tf"]').name = 'correct_answer';
+        } else {
+            mcOptions.style.display = 'none';
+            correctMC.style.display = 'none';
+            correctTF.style.display = 'none';
+            correctFB.style.display = 'block';
+            document.querySelector('[name="correct_answer_fb"]').disabled = false;
+            document.querySelector('[name="correct_answer_fb"]').name = 'correct_answer';
+        }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', toggleOptions);
+</script>
+{% endblock %}
