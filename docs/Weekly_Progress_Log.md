@@ -217,26 +217,31 @@ None
 ## Week 7
 
 ### Work Completed
-- [ ] Checkpoint 1: Demonstration of requirements
-- [ ] Comprehensive testing of authentication system
-- [ ] Comprehensive testing of quiz creation/management
-- [ ] Bug fixes
-- [ ] Created demo quizzes for presentation
-- [ ] UI/UX improvements
-- [ ] Error handling improvements
-- [ ] Documentation updates
+- ✅ Checkpoint 1: Demonstration of requirements
+- ✅ Comprehensive testing of authentication system
+- ✅ Comprehensive testing of quiz creation/management
+- ✅ Bug fixes
+- ✅ Created demo quizzes for presentation
+- ✅ UI/UX improvements
+- ✅ Error handling improvements
+- ✅ Documentation updates
 
 ### Progress Summary
-[To be filled in]
+Successfully demonstrated project requirements for Checkpoint 1. Conducted comprehensive testing across the authentication and quiz management systems to ensure stability. Addressed identified bugs and implemented UI/UX and error handling improvements for a smoother user experience. Created demo quizzes to effectively showcase the platform's features during the presentation, and updated all relevant documentation.
 
 ### Impediments/Challenges
-[To be filled in]
+- Thoroughly testing all edge cases for authentication and quiz management
+- Standardizing the UI/UX design across different views
+- Ensuring clear and user-friendly error messages
 
 ### Changes to Plan
-[To be filled in]
+- Added premium features (Flashcards and AI-Assisted Quiz Generation) to the project roadmap for Weeks 13 and 14 to enhance the interactive experience.
 
 ### Next Week Goals
-[To be filled in]
+- Implement game session module (session code generation, session creation)
+- Build host game control screen and player lobby
+- Implement basic game state management
+- Track session participants
 
 ---
 
@@ -248,7 +253,7 @@ None
 - [ ] Game session creation
 - [ ] Session status management
 - [ ] Host game control screen
-- [ ] Join game form for players
+- [ ] Join game form for players (Quick join, no account required)
 - [ ] Session validation
 - [ ] Player lobby
 - [ ] Basic game state management
@@ -354,16 +359,15 @@ None
 ## Week 12
 
 ### Work Completed
-- [ ] Checkpoint 2: Demonstration of testing
 - [ ] Unit tests written for authentication
 - [ ] Unit tests written for quiz management
 - [ ] Unit tests written for game session logic
 - [ ] Integration tests
-- [ ] System testing with concurrent players
-- [ ] Performance testing
+- [ ] Manual testing with concurrent players across browser tabs
 - [ ] Security testing
 - [ ] Test results documented
 - [ ] Bugs identified and fixed
+- [ ] Checkpoint 2: Demonstration of testing
 
 ### Progress Summary
 [To be filled in]
@@ -392,6 +396,7 @@ None
 - [ ] Success animations
 - [ ] Button states and hover effects
 - [ ] Accessibility improvements
+- [ ] Premium Feature: Independent study Flashcards view
 
 ### Progress Summary
 [To be filled in]
@@ -410,16 +415,18 @@ None
 ## Week 14
 
 ### Work Completed
+- [ ] Premium Feature: AI-Assisted quiz generation from topic/notes
+- [ ] Automated testing coverage expanded for game session and AI routes
 - [ ] Code refactoring
 - [ ] Code comments and docstrings added
-- [ ] Performance optimization
 - [ ] Fixed remaining bugs
+- [ ] Performance optimization
 - [ ] Database indexes added
-- [ ] Security review and hardening
-- [ ] HTTPS configuration prepared
-- [ ] Environment variables configured
-- [ ] Error logging implemented
 - [ ] Input validation strengthened
+- [ ] Error logging implemented
+- [ ] Environment variables configured
+- [ ] HTTPS configuration prepared
+- [ ] Security review and hardening
 
 ### Progress Summary
 [To be filled in]
