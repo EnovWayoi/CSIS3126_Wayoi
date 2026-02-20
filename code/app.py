@@ -593,6 +593,19 @@ def delete_question(quiz_id, question_id):
     return redirect(url_for('edit_quiz', quiz_id=quiz_id))
 
 
+# =============================================
+# Error Handlers
+# =============================================
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    # In a production app, we would log the error to a file/monitoring service here
+    return render_template('500.html'), 500
+
 # Test routes (keep these for now)
 @app.route('/test-db')
 def test_db():
