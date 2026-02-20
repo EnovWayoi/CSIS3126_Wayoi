@@ -32,6 +32,8 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 - **Question Types**: Support for Multiple Choice, True/False, and Fill-in-the-blank
 - **Public/Private**: Option to make quizzes public or keep them private
 - **Rich Editor**: Easy-to-use interface for adding and editing questions
+- **Premium (Upcoming)**: Independent study Flashcards view
+- **Premium (Upcoming)**: AI-Assisted rapid quiz creation from study notes
 
 
 ## Current Status
@@ -44,6 +46,8 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 ✅ Bootstrap 5 UI integration
 ✅ Quiz Creation & Management (CRUD)
 ✅ Question Management (Multiple Choice, True/False, Fill-in-Blank)
+✅ Comprehensive Testing Framework (unittest) implemented
+✅ Custom Error Pages (404/500) integrated
 ✅ Comprehensive Documentation (SRS, ERD, Progress Logs)
 
 ## Setup Instructions
