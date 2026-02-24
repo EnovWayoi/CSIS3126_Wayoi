@@ -1,7 +1,10 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+
 import unittest
 from app import app, get_db_connection
 from werkzeug.security import generate_password_hash
-
 class WayoiTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
