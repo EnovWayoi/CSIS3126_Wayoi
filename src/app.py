@@ -1,9 +1,12 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
-from config import db_config
-
+from config.config import db_config
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this-in-production'
 
@@ -640,4 +643,4 @@ def show_tables():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
