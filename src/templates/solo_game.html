@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+
+{% block title %}Solo Mode: {{ quiz.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto mb-20" id="game-app">
+    <!-- Header Area -->
+    <div class="bg-neo-blue neo-card p-6 mb-8 flex justify-between items-center relative">
+        <div class="flex flex-col">
+            <h1 class="text-3xl font-black truncate max-w-lg" title="{{ quiz.title }}">{{ quiz.title }}</h1>
+            <span
+                class="font-bold text-gray-700 bg-white border-2 border-black px-2 py-0.5 mt-2 self-start shadow-neo-sm">Solo
+                Mode 🎮</span>
+        </div>
+
+        <div class="flex gap-4 font-black text-xl">
+            <div id="score-display"
+                class="bg-neo-yellow border-4 border-black px-4 py-2 shadow-neo-sm transform rotate-2">
+                Score: 0
+            </div>
+        </div>
+
+        <!-- Exit Button -->
+        <a href="{{ url_for('view_quiz', quiz_id=quiz.quiz_id) }}"
+            class="absolute -top-4 -right-4 bg-neo-red border-4 border-black rounded-full w-12 h-12 flex items-center justify-center font-black text-xl shadow-neo hover:scale-110 transition-transform cursor-pointer pb-1"
+            title="Exit Game">&times;</a>
+    </div>
+
+    <!-- Active Game Container -->
+    <div id="question-container" class="hidden">
+        <div class="bg-white neo-card p-4 md:p-8 flex flex-col relative min-h-[60vh] md:min-h-[500px] h-auto">
+            <!-- Timer Bar -->
+            <div class="absolute top-0 left-0 w-full h-3 bg-gray-200 border-b-4 border-black border-dashed">
+                <div id="timer-bar" class="h-full bg-neo-red w-full transition-all ease-linear"></div>
+            </div>
+
+            <div class="mt-4 flex justify-between items-center mb-6 font-bold text-gray-500 text-lg">
+                <span id="question-counter">Question 1/X</span>
+                <span id="timer-text" class="text-black bg-neo-pink px-3 py-1 border-2 border-black shadow-neo-sm"><span
+                        id="time-left">0</span>s</span>
+            </div>
+
+            <h2 id="question-text" class="text-3xl md:text-5xl font-black mb-8 leading-tight">Question Text</h2>
+
+            <!-- Options Area -->
+            <div id="options-area" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-auto">
+                <!-- Buttons injected via JS -->
+            </div>
+        </div>
+
+        <!-- Next Button Container -->
+        <div id="next-button-container" class="mt-6 text-right hidden">
+            <button id="next-button" class="neo-btn bg-neo-green text-2xl px-12 py-4">Next &rarr;</button>
+        </div>
+    </div>
+
+    <!-- Results Container -->
+    <div id="results-container" class="hidden mt-12 text-center">
+        <div class="bg-neo-pink neo-card p-12 max-w-2xl mx-auto">
+            <h2 class="text-6xl font-black mb-4 tracking-tighter title-skew">Game Over!</h2>
+            <div class="text-2xl font-bold mb-8 text-gray-800">Your Final Score</div>
+
+            <div
+                class="text-8xl font-black mb-12 bg-white border-8 border-black p-8 shadow-neo inline-block transform -rotate-2 text-neo-blue title-shadow">
+                <span id="final-score">0</span>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button onclick="startGame()" class="neo-btn bg-neo-yellow px-8 py-4 text-xl flex-1">Play Again
+                    🔄</button>
+                <a href="{{ url_for('view_quiz', quiz_id=quiz.quiz_id) }}"
+                    class="neo-btn bg-black text-white px-8 py-4 text-xl flex-1">Back to Quiz</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .title-skew {
+        transform: skewX(-5deg);
+        display: inline-block;
+    }
+
+    .title-shadow {
+        text-shadow: 4px 4px 0px #000;
+    }
+
+    .option-btn {
+        transition: all 0.1s;
+    }
+
+    .option-btn:active,
+    .option-clicked {
+        transform: translate(4px, 4px);
+        box-shadow: none !important;
+    }
+
+    .correct-answer {
+        background-color: #A0E8AF !important;
+        /* neo-green */
+        border-width: 6px;
+        animation: pulse 0.5s ease;
+    }
+
+    .wrong-answer {
+        background-color: #FF8A8A !important;
+        /* neo-red */
+        opacity: 0.8;
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+        }
+
+        50% {
+            transform: scale(1.05);
+        }
+
+        100% {
+            transform: scale(1);
+        }
+    }
+</style>
+
+<script>
+    // Load quiz data safely
+    const rawQuestions = {{ questions | tojson | safe }};
+
+    // Process questions for JS (ensure nulls/etc are handled)
+    const questions = rawQuestions.map(q => ({
+        id: q.question_id,
+        text: q.question_text,
+        type: q.question_type,
+        points: q.points || 10,
+        timeLimit: q.time_limit || 30,
+        correct: q.correct_answer,
+        options: {
+            'A': q.option_a,
+            'B': q.option_b,
+            'C': q.option_c,
+            'D': q.option_d
+        }
+    }));
+
+    // Game State
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let timerInterval = null;
+    let timeLeft = 0;
+    let hasAnswered = false;
+
+    // DOM Elements
+    const qContainer = document.getElementById('question-container');
+    const rContainer = document.getElementById('results-container');
+    const qText = document.getElementById('question-text');
+    const optionsArea = document.getElementById('options-area');
+    const qCounter = document.getElementById('question-counter');
+    const scoreDisplay = document.getElementById('score-display');
+    const timerText = document.getElementById('time-left');
+    const timerBar = document.getElementById('timer-bar');
+    const nextBtnContainer = document.getElementById('next-button-container');
+    const nextBtn = document.getElementById('next-button');
+    const finalScore = document.getElementById('final-score');
+
+    function startGame() {
+        if (questions.length === 0) {
+            alert("This quiz has no questions! Add some before playing.");
+            window.location.href = "{{ url_for('view_quiz', quiz_id=quiz.quiz_id) }}";
+            return;
+        }
+        currentQuestionIndex = 0;
+        score = 0;
+        updateScore(0);
+        rContainer.classList.add('hidden');
+        qContainer.classList.remove('hidden');
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        hasAnswered = false;
+        nextBtnContainer.classList.add('hidden');
+
+        const q = questions[currentQuestionIndex];
+        qCounter.innerText = `Question ${currentQuestionIndex + 1}/${questions.length}`;
+        qText.innerText = q.text;
+
+        // Reset options
+        optionsArea.innerHTML = '';
+
+        if (q.type === 'fill_blank') {
+            optionsArea.innerHTML = `
+                <div class="col-span-full">
+                    <input type="text" id="fill-blank-input" class="neo-input bg-white w-full text-2xl py-4" placeholder="Type your answer here..." autocomplete="off">
+                    <button id="submit-answer-btn" class="neo-btn bg-black text-white mt-4 text-xl px-8 py-3 w-full">Submit</button>
+                </div>
+            `;
+            document.getElementById('submit-answer-btn').addEventListener('click', () => {
+                const val = document.getElementById('fill-blank-input').value.trim();
+                if (val) submitAnswer(val);
+            });
+            document.getElementById('fill-blank-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const val = e.target.value.trim();
+                    if (val) submitAnswer(val);
+                }
+            });
+            // Auto focus
+            setTimeout(() => document.getElementById('fill-blank-input').focus(), 100);
+        } else {
+            // Multiple choice or True/False
+            const colors = ['bg-neo-blue', 'bg-neo-pink', 'bg-neo-yellow', 'bg-neo-green'];
+            const keys = ['A', 'B', 'C', 'D'];
+
+            keys.forEach((key, index) => {
+                if (q.options[key]) {
+                    const btn = document.createElement('button');
+                    btn.className = `option-btn neo-card ${colors[index]} p-4 md:p-6 text-xl md:text-2xl font-bold flex items-center text-left min-h-[80px] hover:brightness-95 w-full leading-tight`;
+                    // Add prefix unless true/false
+                    const prefix = q.type === 'true_false' ? '' : `<span class="mr-3 bg-white border-2 border-black rounded px-2 py-1 shadow-neo-sm shrink-0 flex items-center justify-center">${key}</span>`;
+                    btn.innerHTML = `${prefix}<span class="flex-1 break-words">${q.options[key]}</span>`;
+                    btn.dataset.key = key;
+                    btn.addEventListener('click', () => submitAnswer(key));
+                    optionsArea.appendChild(btn);
+                }
+            });
+        }
+
+        // Start Timer
+        startTimer(q.timeLimit);
+    }
+
+    function startTimer(seconds) {
+        clearInterval(timerInterval);
+        timeLeft = seconds;
+        timerText.innerText = timeLeft;
+        timerBar.style.width = '100%';
+        timerBar.style.transitionDuration = '1s';
+
+        const totalTime = seconds;
+
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            timerText.innerText = timeLeft;
+
+            const pct = (timeLeft / totalTime) * 100;
+            timerBar.style.width = `${pct}%`;
+
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                submitAnswer(null); // Timeout
+            }
+        }, 1000);
+    }
+
+    function submitAnswer(answer) {
+        if (hasAnswered) return;
+        hasAnswered = true;
+        clearInterval(timerInterval);
+
+        const q = questions[currentQuestionIndex];
+        const isCorrect = answer && answer.toLowerCase() === q.correct.toLowerCase();
+
+        if (isCorrect) {
+            // Calculate proportional score
+            // Formula: Math.round((1 - ((response_time / time_limit) / 2)) * points)
+            const responseTime = q.timeLimit - timeLeft;
+            const timePenaltyRatio = (responseTime / q.timeLimit) / 2;
+            const pointsEarned = Math.round((1 - timePenaltyRatio) * q.points);
+            updateScore(pointsEarned);
+        }
+
+        showFeedback(answer, q.correct, isCorrect, q.type);
+
+        // Show next button
+        nextBtnContainer.classList.remove('hidden');
+    }
+
+    function showFeedback(userAnswer, correctAnswer, isCorrect, type) {
+        if (type === 'fill_blank') {
+            const input = document.getElementById('fill-blank-input');
+            const submitBtn = document.getElementById('submit-answer-btn');
+            input.disabled = true;
+            submitBtn.disabled = true;
+
+            if (isCorrect) {
+                input.classList.add('correct-answer');
+            } else {
+                input.classList.add('wrong-answer');
+                // Create element to show correct answer
+                const corr = document.createElement('div');
+                corr.className = 'mt-4 text-xl font-bold bg-white border-4 border-black p-4 text-center text-green-700 shadow-neo';
+                corr.innerHTML = `Correct answer: ${correctAnswer}`;
+                optionsArea.querySelector('.col-span-full').appendChild(corr);
+            }
+        } else {
+            const btns = document.querySelectorAll('.option-btn');
+            btns.forEach(btn => {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+
+                if (btn.dataset.key === correctAnswer) {
+                    btn.classList.remove('opacity-50');
+                    btn.classList.add('correct-answer');
+                } else if (btn.dataset.key === userAnswer) {
+                    btn.classList.remove('opacity-50');
+                    btn.classList.add('wrong-answer');
+                }
+            });
+        }
+    }
+
+    function updateScore(pointsAdded) {
+        score += pointsAdded;
+        scoreDisplay.innerText = `Score: ${score}`;
+        if (pointsAdded > 0) {
+            // Bounce animation
+            scoreDisplay.classList.add('scale-125', 'bg-green-300');
+            setTimeout(() => {
+                scoreDisplay.classList.remove('scale-125', 'bg-green-300');
+            }, 300);
+        }
+    }
+
+    function endGame() {
+        qContainer.classList.add('hidden');
+        rContainer.classList.remove('hidden');
+
+        // Setup final score animation
+        let currentDisplay = 0;
+        const duration = 1500;
+        const steps = 30;
+        const increment = score / steps;
+        const stepTime = duration / steps;
+
+        const counter = setInterval(() => {
+            currentDisplay += increment;
+            if (currentDisplay >= score) {
+                finalScore.innerText = score;
+                clearInterval(counter);
+            } else {
+                finalScore.innerText = Math.floor(currentDisplay);
+            }
+        }, stepTime);
+    }
+
+    // Event Listeners
+    nextBtn.addEventListener('click', () => {
+        currentQuestionIndex++;
+        if (currentQuestionIndex >= questions.length) {
+            endGame();
+        } else {
+            loadQuestion();
+        }
+    });
+
+    // Start immediately on load
+    document.addEventListener('DOMContentLoaded', startGame);
+</script>
+{% endblock %}
