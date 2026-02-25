@@ -1,13 +1,14 @@
 ```sql
 -- ============================================
 -- Interactive Quiz Show Platform
--- Database Schema (Ver. 2)
+-- Database Schema (Ver. 3)
 -- ============================================
 -- Author: Enov Wayoi
 -- Course: CSIS3126 - Design Project I
--- Date: February 8, 2026
--- REVISION: Removed redundant question-session relationship,
---           simplified player_answers to use participant_id
+-- Date: February 2026
+-- REVISION: Removed session_participants (login required)
+--           Added game_participants (anonymous nickname joins)
+--           Updated player_answers FK relationships
 -- ============================================
 
 -- Create database
@@ -94,23 +95,19 @@ CREATE TABLE game_sessions (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
--- Table: session_participants
--- Description: Junction table for users and sessions
--- NOTE: This table now comes BEFORE player_answers
---       because player_answers references it
+-- Table: game_participants
+-- Description: Stores anonymous players who join a game
+-- NOTE: Players join using nicknames, no login required.
 -- ============================================
-CREATE TABLE session_participants (
+CREATE TABLE game_participants (
     participant_id INT AUTO_INCREMENT PRIMARY KEY,
     session_id INT NOT NULL,
-    user_id INT NOT NULL,
+    nickname VARCHAR(50) NOT NULL,
     score INT DEFAULT 0,
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     FOREIGN KEY (session_id) REFERENCES game_sessions(session_id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-    INDEX idx_participants_session (session_id),
-    INDEX idx_participants_user (user_id),
-    UNIQUE KEY unique_session_user (session_id, user_id)
+    INDEX idx_participants_session (session_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
@@ -129,7 +126,7 @@ CREATE TABLE player_answers (
     points_earned INT DEFAULT 0,
     answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    FOREIGN KEY (participant_id) REFERENCES session_participants(participant_id) ON DELETE CASCADE,
+    FOREIGN KEY (participant_id) REFERENCES game_participants(participant_id) ON DELETE CASCADE,
     FOREIGN KEY (question_id) REFERENCES questions(question_id) ON DELETE CASCADE,
     INDEX idx_answers_participant (participant_id),
     INDEX idx_answers_question (question_id)
@@ -171,7 +168,7 @@ DESCRIBE users;
 DESCRIBE quizzes;
 DESCRIBE questions;
 DESCRIBE game_sessions;
-DESCRIBE session_participants;
+DESCRIBE game_participants;
 DESCRIBE player_answers;
 
 -- Count records in each table
@@ -183,7 +180,7 @@ SELECT 'questions', COUNT(*) FROM questions
 UNION ALL
 SELECT 'game_sessions', COUNT(*) FROM game_sessions
 UNION ALL
-SELECT 'session_participants', COUNT(*) FROM session_participants
+SELECT 'game_participants', COUNT(*) FROM game_participants
 UNION ALL
 SELECT 'player_answers', COUNT(*) FROM player_answers;
 ```
