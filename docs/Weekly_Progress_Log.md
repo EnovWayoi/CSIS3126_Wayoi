@@ -248,45 +248,41 @@ Successfully demonstrated project requirements for Checkpoint 1. Conducted compr
 ## Week 8
 
 ### Work Completed
-- [ ] Game session module implemented
-- [ ] Session code generation
-- [ ] Game session creation
-- [ ] Session status management
-- [ ] Host game control screen
-- [ ] Join game form for players (Quick join, no account required)
-- [ ] Session validation
-- [ ] Player lobby (Users enter a room and wait for host to start)
-- [ ] Basic game state management
-- [ ] Session participants tracking
+- ✅ Link Sharing & Access: Generate shareable links for public quizzes
+- ✅ Allow anonymous users to view public quizzes via link
+- ✅ Solo Mode: Allow creators to test their own quizzes before hosting a live game
+- ✅ Game session module basic setup
+- ✅ Session code generation logic
+- ✅ Game session creation database schema and logic
+- ✅ Session validation
+- ✅ Join game form for players (Quick join, no account required)
+- ✅ UI Overhaul: Applied a vibrant 'Neo-Brutalism' aesthetic across the entire platform using Tailwind CSS
 
 ### Progress Summary
-[To be filled in]
+Successfully implemented “Link Sharing” allowing anonymous access to public quizzes. Developed a fully functional JavaScript-based "Solo Mode" so users can practice quizzes independently. Completely redesigned the website interface by transitioning from standard Bootstrap to a highly stylized and vibrant Neo-Brutalism aesthetic using Tailwind CSS. Finally, established the foundational backend routes and database schema updates (`game_sessions`, `game_participants`) required for the upcoming live game sessions, including lobby stubs and a session code generator.
 
 ### Impediments/Challenges
-[To be filled in]
+- Synchronizing the frontend timer and proportional scoring logic in Javascript for Solo Mode.
+- Redesigning the database to correctly utilize a `game_participants` table that accommodates anonymous joins via nicknames, replacing the old `session_participants` table which required account logins.
 
 ### Changes to Plan
-[To be filled in]
+- Replaced the `session_participants` table with `game_participants` to ensure users do not need an account to join a hosted live game.
 
 ### Next Week Goals
-[To be filled in]
+- Install and configure Flask-SocketIO.
+- Establish WebSocket connections for real-time game state management.
+- Complete the Host Game Control Screen and Player Lobby interfaces.
 
 ---
 
 ## Week 9
 
 ### Work Completed
-- [ ] Question display for players with time countdown
-- [ ] Answer submission functionality
-- [ ] Answer validation logic
-- [ ] Time-based proportional scoring system
-- [ ] Points calculation: `⌊(1 - (({response time} / {question timer}) / 2)) * {points possible}⌉` (Default 1000 points)
-- [ ] Player scores updated in database
-- [ ] Basic leaderboard display
-- [ ] "Next question" functionality
-- [ ] Question progression tracking
-- [ ] End game functionality
-- [ ] Final results screen
+- [ ] Flask-SocketIO installed and configured
+- [ ] WebSocket connection established and error handling added
+- [ ] Host game control screen interface (Implement WebSockets)
+- [ ] Player lobby (Implement WebSockets)
+- [ ] Session participants tracking and real-time player list updates
 
 ### Progress Summary
 [To be filled in]
@@ -305,15 +301,12 @@ Successfully demonstrated project requirements for Checkpoint 1. Conducted compr
 ## Week 10
 
 ### Work Completed
-- [ ] Flask-SocketIO installed and configured
-- [ ] WebSocket connection established
-- [ ] Socket event handlers created
-- [ ] Real-time player count updates
-- [ ] Live player list
-- [ ] Basic real-time question synchronization
-- [ ] Broadcasting events to players
-- [ ] Room-based socket communication
-- [ ] JavaScript client-side socket handling
+- [ ] Question display for players with time countdown
+- [ ] Answer submission functionality and validation logic
+- [ ] Time-based proportional scoring system implementation
+- [ ] Points calculation: `⌊(1 - (({response time} / {question timer}) / 2)) * {points possible}⌉`
+- [ ] Player scores updated in database
+- [ ] Host controls to advance all players to the next question
 
 ### Progress Summary
 [To be filled in]
@@ -332,15 +325,12 @@ Successfully demonstrated project requirements for Checkpoint 1. Conducted compr
 ## Week 11
 
 ### Work Completed
-- [ ] Real-time leaderboard updates
-- [ ] Question synchronization across all players
-- [ ] Countdown timer with live updates
-- [ ] Answer submission triggers leaderboard refresh
-- [ ] Host can advance all players to next question
+- [ ] Real-time leaderboard view created
+- [ ] Leaderboard updates triggered by answer submissions
+- [ ] Answer feedback (correct/incorrect) shown immediately to players
+- [ ] Points animation and visual feedback
 - [ ] Game end notification broadcast
-- [ ] Answer feedback shown immediately
-- [ ] Points animation
-- [ ] Socket reconnection handling
+- [ ] Final results podium/screen
 
 ### Progress Summary
 [To be filled in]
@@ -359,14 +349,11 @@ Successfully demonstrated project requirements for Checkpoint 1. Conducted compr
 ## Week 12
 
 ### Work Completed
-- [ ] Unit tests written for authentication
-- [ ] Unit tests written for quiz management
 - [ ] Unit tests written for game session logic
-- [ ] Integration tests
+- [ ] Integration testing of WebSockets and live functionality
 - [ ] Manual testing with concurrent players across browser tabs
-- [ ] Security testing
-- [ ] Test results documented
-- [ ] Bugs identified and fixed
+- [ ] Security testing and payload validation
+- [ ] Test results documented and bugs identified and fixed
 - [ ] Checkpoint 2: Demonstration of testing
 
 ### Progress Summary
@@ -386,12 +373,10 @@ Successfully demonstrated project requirements for Checkpoint 1. Conducted compr
 ## Week 13
 
 ### Work Completed
-- [ ] UI/UX improvements across all pages
 - [ ] Loading spinners added
 - [ ] Mobile responsiveness improved
 - [ ] Help documentation added
 - [ ] Tutorial for first-time users
-- [ ] Error messages improved
 - [ ] Visual design polish
 - [ ] Success animations
 - [ ] Button states and hover effects
