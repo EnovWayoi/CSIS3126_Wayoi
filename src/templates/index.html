@@ -3,44 +3,64 @@
 {% block title %}Home - Quiz Platform{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8 text-center">
-        <h1 class="display-4 mb-4">🎯 Interactive Quiz Platform</h1>
-        <p class="lead mb-4">
-            Create engaging quizzes, host live game sessions, and challenge your friends!
-        </p>
-        
-        <div class="row mt-5">
-            <div class="col-md-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h3>📝 Create</h3>
-                        <p>Build custom quizzes with multiple question types</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h3>🎮 Host</h3>
-                        <p>Run live quiz games with real-time leaderboards</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h3>🏆 Play</h3>
-                        <p>Join games and compete with other players</p>
-                    </div>
-                </div>
-            </div>
+<div class="flex flex-col items-center text-center mt-12 mb-20 relative z-0">
+    <h1 class="text-5xl md:text-7xl font-black mb-6 tracking-tight leading-tight">
+        Interactive <span
+            class="bg-neo-yellow px-4 inline-block border-4 border-black shadow-neo transform -skew-x-3">Quizzes</span>
+    </h1>
+    <p class="text-xl md:text-2xl font-semibold mb-12 max-w-2xl text-gray-800">
+        Create engaging quizzes, host live game sessions, and challenge your friends in a vibrant way!
+    </p>
+
+    <!-- Join Game Form -->
+    <div class="bg-neo-pink neo-card p-8 mb-16 max-w-2xl w-full mx-auto transform rotate-1">
+        <h2 class="text-3xl font-black mb-4">Join a Game 🎮</h2>
+        <form action="{{ url_for('join_game') }}" method="POST" class="flex flex-col sm:flex-row gap-4">
+            <input type="text" name="session_code" placeholder="Game Code" required
+                class="neo-input bg-white text-xl py-3 px-4 flex-1 font-black uppercase text-center focus:outline-none focus:ring-4 focus:ring-black">
+            <input type="text" name="nickname" placeholder="Nickname" required
+                class="neo-input bg-white text-xl py-3 px-4 flex-1 font-black text-center focus:outline-none focus:ring-4 focus:ring-black">
+            <button type="submit" class="neo-btn bg-black text-white text-xl px-8 py-3 hover:bg-gray-800 shrink-0">
+                Join 🚀
+            </button>
+        </form>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 w-full mb-16">
+        <!-- Card 1 -->
+        <div class="bg-neo-blue neo-card p-8 flex flex-col items-start text-left">
+            <div class="text-5xl mb-6">📝</div>
+            <h3 class="text-2xl font-black mb-3">Create</h3>
+            <p class="font-semibold text-gray-800 text-lg leading-relaxed">Build custom quizzes with multiple question
+                types and interactive designs.</p>
         </div>
-        
-        <div class="mt-5">
-            <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg me-3">Get Started</a>
-            <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg">Login</a>
+
+        <!-- Card 2 -->
+        <div class="bg-neo-pink neo-card p-8 flex flex-col items-start text-left">
+            <div class="text-5xl mb-6">🎮</div>
+            <h3 class="text-2xl font-black mb-3">Host</h3>
+            <p class="font-semibold text-gray-800 text-lg leading-relaxed">Run live quiz games with real-time
+                leaderboards that your users will love.</p>
         </div>
+
+        <!-- Card 3 -->
+        <div class="bg-neo-green neo-card p-8 flex flex-col items-start text-left">
+            <div class="text-5xl mb-6">🏆</div>
+            <h3 class="text-2xl font-black mb-3">Play</h3>
+            <p class="font-semibold text-gray-800 text-lg leading-relaxed">Join games and compete with other players
+                seamlessly on any device.</p>
+        </div>
+    </div>
+
+    <div class="flex flex-wrap gap-6 justify-center">
+        <a href="{{ url_for('register') }}"
+            class="neo-btn bg-black text-white text-xl px-10 py-5 hover:bg-gray-800 hover:-translate-y-1 hover:shadow-neo">
+            Get Started 🔥
+        </a>
+        <a href="{{ url_for('login') }}"
+            class="neo-btn bg-white text-black text-xl px-10 py-5 hover:-translate-y-1 hover:shadow-neo">
+            Login
+        </a>
     </div>
 </div>
 {% endblock %}
