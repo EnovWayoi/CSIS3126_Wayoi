@@ -60,9 +60,16 @@
             <h2 class="text-6xl font-black mb-4 tracking-tighter title-skew">Game Over!</h2>
             <div class="text-2xl font-bold mb-8 text-gray-800">Your Final Score</div>
 
-            <div
-                class="text-8xl font-black mb-12 bg-white border-8 border-black p-8 shadow-neo inline-block transform -rotate-2 text-neo-blue title-shadow">
-                <span id="final-score">0</span>
+            <div class="flex flex-col items-center justify-center w-full">
+                <div
+                    class="text-8xl font-black mb-12 bg-white border-8 border-black p-8 shadow-neo inline-block transform -rotate-2 text-neo-blue title-shadow">
+                    <span id="final-score">0</span><span class="text-4xl text-gray-500"> / <span
+                            id="max-score">0</span></span>
+                </div>
+
+                <div id="final-feedback"
+                    class="text-4xl font-black mb-8 bg-white text-black border-4 border-black inline-block px-6 py-2 shadow-neo title-skew">
+                </div>
             </div>
 
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
@@ -149,6 +156,7 @@
     let timerInterval = null;
     let timeLeft = 0;
     let hasAnswered = false;
+    let maxPossibleScore = 0;
 
     // DOM Elements
     const qContainer = document.getElementById('question-container');
@@ -171,6 +179,7 @@
         }
         currentQuestionIndex = 0;
         score = 0;
+        maxPossibleScore = questions.reduce((sum, q) => sum + q.points, 0);
         updateScore(0);
         rContainer.classList.add('hidden');
         qContainer.classList.remove('hidden');
@@ -325,6 +334,17 @@
     function endGame() {
         qContainer.classList.add('hidden');
         rContainer.classList.remove('hidden');
+
+        // Display max score and feedback
+        document.getElementById('max-score').innerText = maxPossibleScore;
+        const percentage = maxPossibleScore > 0 ? (score / maxPossibleScore) : 0;
+
+        let feedback = "Nice try! 📚";
+        if (percentage >= 0.9) feedback = "Amazing! 🌟";
+        else if (percentage >= 0.7) feedback = "Great job! 🔥";
+        else if (percentage >= 0.5) feedback = "Good effort! 👍";
+
+        document.getElementById('final-feedback').innerText = feedback;
 
         // Setup final score animation
         let currentDisplay = 0;
