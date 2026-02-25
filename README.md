@@ -32,23 +32,27 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 - **Question Types**: Support for Multiple Choice, True/False, and Fill-in-the-blank
 - **Public/Private**: Option to make quizzes public or keep them private
 - **Rich Editor**: Easy-to-use interface for adding and editing questions
-- **Premium (Upcoming)**: Independent study Flashcards view
-- **Premium (Upcoming)**: AI-Assisted rapid quiz creation from study notes
+- **Advanced (Upcoming)**: Independent study Flashcards view
+- **Advanced (Upcoming)**: AI-Assisted rapid quiz creation from study notes
 
+### 🎮 Live Game Sessions
+- **Room-based Play**: Users join a lobby via room code and wait for the host to start.
+- **Time Countdown**: Questions are timed to increase competitiveness.
+- **Time-based Proportional Scoring**: Points are awarded depending on response speed: `⌊(1 - (({response time} / {question timer}) / 2)) * {points possible}⌉` (Default 1000 points).
 
 ## Current Status
 
-✅ Database structure created & normalized (3NF)
-✅ Flask application structure & routing established
-✅ User Authentication (Register, Login, Logout) implemented
-✅ Password Hashing & Security integration
-✅ User Dashboard custom view implemented
-✅ Bootstrap 5 UI integration
-✅ Quiz Creation & Management (CRUD)
-✅ Question Management (Multiple Choice, True/False, Fill-in-Blank)
-✅ Comprehensive Testing Framework (unittest) implemented
-✅ Custom Error Pages (404/500) integrated
-✅ Comprehensive Documentation (SRS, ERD, Progress Logs)
+- ✅ Database structure created & normalized (3NF)
+- ✅ Flask application structure & routing established
+- ✅ User Authentication (Register, Login, Logout) implemented
+- ✅ Password Hashing & Security integration
+- ✅ User Dashboard custom view implemented
+- ✅ Bootstrap 5 UI integration
+- ✅ Quiz Creation & Management (CRUD)
+- ✅ Question Management (Multiple Choice, True/False, Fill-in-Blank)
+- ✅ Comprehensive Testing Framework (unittest) implemented
+- ✅ Custom Error Pages (404/500) integrated
+- ✅ Comprehensive Documentation (SRS, ERD, Progress Logs)
 
 ## Setup Instructions
 
