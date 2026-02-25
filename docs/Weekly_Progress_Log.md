@@ -235,7 +235,7 @@ Successfully demonstrated project requirements for Checkpoint 1. Conducted compr
 - Ensuring clear and user-friendly error messages
 
 ### Changes to Plan
-- Added premium features (Flashcards and AI-Assisted Quiz Generation) to the project roadmap for Weeks 13 and 14 to enhance the interactive experience.
+- Added advanced features (Flashcards and AI-Assisted Quiz Generation) to the project roadmap for Weeks 13 and 14 to enhance the interactive experience.
 
 ### Next Week Goals
 - Implement game session module (session code generation, session creation)
@@ -255,7 +255,7 @@ Successfully demonstrated project requirements for Checkpoint 1. Conducted compr
 - [ ] Host game control screen
 - [ ] Join game form for players (Quick join, no account required)
 - [ ] Session validation
-- [ ] Player lobby
+- [ ] Player lobby (Users enter a room and wait for host to start)
 - [ ] Basic game state management
 - [ ] Session participants tracking
 
@@ -276,11 +276,11 @@ Successfully demonstrated project requirements for Checkpoint 1. Conducted compr
 ## Week 9
 
 ### Work Completed
-- [ ] Question display for players
+- [ ] Question display for players with time countdown
 - [ ] Answer submission functionality
 - [ ] Answer validation logic
-- [ ] Scoring system
-- [ ] Points calculation
+- [ ] Time-based proportional scoring system
+- [ ] Points calculation: `⌊(1 - (({response time} / {question timer}) / 2)) * {points possible}⌉` (Default 1000 points)
 - [ ] Player scores updated in database
 - [ ] Basic leaderboard display
 - [ ] "Next question" functionality
@@ -396,7 +396,7 @@ Successfully demonstrated project requirements for Checkpoint 1. Conducted compr
 - [ ] Success animations
 - [ ] Button states and hover effects
 - [ ] Accessibility improvements
-- [ ] Premium Feature: Independent study Flashcards view
+- [ ] Advanced Feature: Independent study Flashcards view
 
 ### Progress Summary
 [To be filled in]
@@ -415,7 +415,7 @@ Successfully demonstrated project requirements for Checkpoint 1. Conducted compr
 ## Week 14
 
 ### Work Completed
-- [ ] Premium Feature: AI-Assisted quiz generation from topic/notes
+- [ ] Advanced Feature: AI-Assisted quiz generation from topic/notes
 - [ ] Automated testing coverage expanded for game session and AI routes
 - [ ] Code refactoring
 - [ ] Code comments and docstrings added
