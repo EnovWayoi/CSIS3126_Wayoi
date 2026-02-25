@@ -7,6 +7,22 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
 from config.config import db_config
+import random
+import string
+import socket
+
+def get_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
+
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this-in-production'
 
@@ -263,7 +279,6 @@ def create_quiz():
 
 # View Quiz (read-only)
 @app.route('/quiz/<int:quiz_id>')
-@login_required
 def view_quiz(quiz_id):
     try:
         conn = get_db_connection()
@@ -276,13 +291,16 @@ def view_quiz(quiz_id):
             flash('Quiz not found', 'danger')
             cursor.close()
             conn.close()
-            return redirect(url_for('dashboard'))
+            return redirect(url_for('index'))
 
-        if quiz['created_by'] != int(current_user.id):
-            flash('You do not have permission to view this quiz', 'danger')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('dashboard'))
+        # Check access permission: public quizzes can be viewed by anyone,
+        # private quizzes only by the creator.
+        if quiz['is_public'] == 0:
+            if not current_user.is_authenticated or quiz['created_by'] != int(current_user.id):
+                flash('You do not have permission to view this private quiz', 'danger')
+                cursor.close()
+                conn.close()
+                return redirect(url_for('dashboard') if current_user.is_authenticated else url_for('index'))
 
         cursor.execute(
             "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC",
@@ -298,6 +316,48 @@ def view_quiz(quiz_id):
     except Exception as e:
         flash(f'Error loading quiz: {str(e)}', 'danger')
         return redirect(url_for('dashboard'))
+
+
+# Solo Mode (Test Quiz)
+@app.route('/quiz/<int:quiz_id>/solo')
+def solo_quiz(quiz_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+        quiz = cursor.fetchone()
+
+        if not quiz:
+            flash('Quiz not found', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('index'))
+
+        # Check access permission: public quizzes can be viewed by anyone,
+        # private quizzes only by the creator.
+        if quiz['is_public'] == 0:
+            if not current_user.is_authenticated or quiz['created_by'] != int(current_user.id):
+                flash('You do not have permission to play this private quiz', 'danger')
+                cursor.close()
+                conn.close()
+                return redirect(url_for('dashboard') if current_user.is_authenticated else url_for('index'))
+
+        cursor.execute(
+            "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC",
+            (quiz_id,)
+        )
+        questions = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        # Render the solo game interface
+        return render_template('solo_game.html', quiz=quiz, questions=questions)
+
+    except Exception as e:
+        flash(f'Error loading solo quiz: {str(e)}', 'danger')
+        return redirect(url_for('dashboard') if current_user.is_authenticated else url_for('index'))
 
 
 # Edit Quiz
@@ -594,6 +654,141 @@ def delete_question(quiz_id, question_id):
         flash(f'Error deleting question: {str(e)}', 'danger')
 
     return redirect(url_for('edit_quiz', quiz_id=quiz_id))
+
+
+# =============================================
+# Game Session Routes
+# =============================================
+
+@app.route('/host/<int:quiz_id>', methods=['GET', 'POST'])
+@login_required
+def host_game(quiz_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+        quiz = cursor.fetchone()
+
+        if not quiz or quiz['created_by'] != int(current_user.id):
+            flash('Quiz not found or you do not have permission to host it.', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('dashboard'))
+
+        # Generate a 6-character random alphanumeric session code
+        session_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+        cursor.execute(
+            "INSERT INTO game_sessions (session_code, quiz_id, host_id, status) VALUES (%s, %s, %s, %s)",
+            (session_code, quiz_id, current_user.id, 'waiting')
+        )
+        conn.commit()
+        session_id = cursor.lastrowid
+        
+        # Fetch the created session for the template
+        cursor.execute("SELECT * FROM game_sessions WHERE session_id = %s", (session_id,))
+        game_session = cursor.fetchone()
+
+        cursor.close()
+        conn.close()
+
+        # Get local IP and port for display
+        local_ip = get_local_ip()
+        port = request.host.split(':')[1] if ':' in request.host else '5000'
+        host_url = f"{local_ip}:{port}"
+
+        # Render the Host lobby stub
+        return render_template('host_lobby_stub.html', quiz=quiz, session=game_session, host_url=host_url)
+
+    except Exception as e:
+        flash(f'Error starting session: {str(e)}', 'danger')
+        return redirect(url_for('dashboard'))
+
+@app.route('/cancel_session/<int:session_id>', methods=['POST'])
+@login_required
+def cancel_session(session_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("SELECT * FROM game_sessions WHERE session_id = %s", (session_id,))
+        game_session = cursor.fetchone()
+
+        if game_session and game_session['host_id'] == current_user.id:
+            cursor.execute("DELETE FROM game_sessions WHERE session_id = %s", (session_id,))
+            conn.commit()
+            flash('Game session cancelled successfully.', 'success')
+        else:
+            flash('Unauthorized or session not found.', 'danger')
+
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        flash(f'Error cancelling session: {str(e)}', 'danger')
+
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/join', methods=['POST'])
+def join_game():
+    session_code = request.form.get('session_code', '').strip().upper()
+    nickname = request.form.get('nickname', '').strip()
+
+    if not session_code or not nickname:
+        flash('Session code and nickname are required to join.', 'danger')
+        return redirect(url_for('index'))
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Check if session exists and is waiting
+        cursor.execute(
+            "SELECT * FROM game_sessions WHERE session_code = %s AND status = 'waiting'",
+            (session_code,)
+        )
+        game_session = cursor.fetchone()
+
+        if not game_session:
+            flash('Invalid session code or the game has already started.', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('index'))
+
+        # Check if nickname already taken in this session
+        cursor.execute(
+            "SELECT * FROM game_participants WHERE session_id = %s AND nickname = %s",
+            (game_session['session_id'], nickname)
+        )
+        if cursor.fetchone():
+            flash('That nickname is already taken in this game!', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('index'))
+
+        # Insert participant
+        cursor.execute(
+            "INSERT INTO game_participants (session_id, nickname) VALUES (%s, %s)",
+            (game_session['session_id'], nickname)
+        )
+        conn.commit()
+        participant_id = cursor.lastrowid
+
+        cursor.close()
+        conn.close()
+
+        # Save participant ID to Flask session
+        session['participant_id'] = participant_id
+        session['nickname'] = nickname
+        session['game_session_id'] = game_session['session_id']
+
+        # Render the Player lobby stub
+        return render_template('player_lobby_stub.html', session=game_session, nickname=nickname)
+
+    except Exception as e:
+        flash(f'Error joining game: {str(e)}', 'danger')
+        return redirect(url_for('index'))
 
 
 # =============================================
