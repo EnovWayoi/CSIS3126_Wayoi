@@ -60,13 +60,17 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 
 ## Setup Instructions
 
-1. Install Python 3.10+
-2. Install MySQL
-3. Create database: `CREATE DATABASE quiz_platform;`
-4. Install dependencies: `pip install flask flask-socketio flask-login mysql-connector-python`
-5. Navigate to the code directory: `cd code`
-6. Run: `python app.py`
-7. Visit: `http://127.0.0.1:5000`
+1. Install Python 3.10+ and MySQL
+2. Clone the repository and navigate to the project root directory
+3. Create a python virtual environment: `python -m venv .venv`
+4. Activate the virtual environment:
+   - Windows: `.venv\Scripts\activate`
+   - Mac/Linux: `source .venv/bin/activate`
+5. Install project dependencies: `pip install -r requirements.txt`
+6. Create database: `CREATE DATABASE quiz_platform;`
+7. Ensure your MySQL credentials are correct in `src/config/config.py`
+8. Start the application: `python src/app.py`
+9. Visit: `http://127.0.0.1:5000`
 
 ## Database Tables
 
