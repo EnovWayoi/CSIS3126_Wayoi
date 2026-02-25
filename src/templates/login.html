@@ -3,33 +3,33 @@
 {% block title %}Login - Quiz Platform{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-body">
-                <h2 class="card-title text-center mb-4">Login</h2>
-                
-                <form method="POST" action="{{ url_for('login') }}">
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Username or Email</label>
-                        <input type="text" class="form-control" id="username" name="username" 
-                               required autofocus>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" name="password" 
-                               required>
-                    </div>
-                    
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">Login</button>
-                    </div>
-                </form>
-                
-                <div class="text-center mt-3">
-                    <p>Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
+<div class="flex justify-center mt-12 mb-20 relative z-0">
+    <div class="w-full max-w-md">
+        <div class="bg-neo-blue neo-card p-8">
+            <h2 class="text-3xl font-black text-center mb-6">Login</h2>
+
+            <form method="POST" action="{{ url_for('login') }}" class="flex flex-col gap-5">
+                <div>
+                    <label for="username" class="block font-bold mb-2">Username or Email</label>
+                    <input type="text" class="neo-input bg-white" id="username" name="username" required autofocus>
                 </div>
+
+                <div>
+                    <label for="password" class="block font-bold mb-2">Password</label>
+                    <input type="password" class="neo-input bg-white" id="password" name="password" required>
+                </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="neo-btn bg-black text-white w-full py-3 text-lg hover:bg-gray-800">
+                        Login
+                    </button>
+                </div>
+            </form>
+
+            <div class="text-center mt-6 font-semibold">
+                <p>Don't have an account? <a href="{{ url_for('register') }}"
+                        class="text-blue-800 hover:underline decoration-2 underline-offset-4 font-bold">Register
+                        here</a></p>
             </div>
         </div>
     </div>
