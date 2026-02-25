@@ -1,11 +1,11 @@
 # Interactive Quiz Show Platform - Database Design
 
-**Version:** 2.0
-**Date:** February 8, 2026
+**Version:** 3.0
+**Date:** February 2026
 **Author:** Enov Wayoi
 
 ## Database Overview
-The quiz platform database consists of 6 main entities that manage users, quizzes, questions, game sessions, and player participation. The design follows Third Normal Form (3NF) with clear, non-redundant relationships.
+The quiz platform database consists of 6 main entities that manage users, quizzes, questions, game sessions, and anonymous player participation. The design follows Third Normal Form (3NF) with clear, non-redundant relationships.
 
 ## Entity Relationship Diagram (ERD)
 
@@ -53,10 +53,10 @@ erDiagram
         timestamp started_at
         timestamp ended_at
     }
-    session_participants {
+    game_participants {
         int participant_id PK
         int session_id FK
-        int user_id FK
+        varchar nickname
         int score
         timestamp joined_at
     }
@@ -72,11 +72,10 @@ erDiagram
 
     users ||--o{ quizzes : "creates"
     users ||--o{ game_sessions : "hosts"
-    users ||--o{ session_participants : "participates_in"
     quizzes ||--o{ questions : "contains"
     quizzes ||--o{ game_sessions : "used_in"
-    game_sessions ||--o{ session_participants : "has"
-    session_participants ||--o{ player_answers : "submits"
+    game_sessions ||--o{ game_participants : "has"
+    game_participants ||--o{ player_answers : "submits"
     questions ||--o{ player_answers : "has_answers"
 ```
 
@@ -127,16 +126,16 @@ Stores active and completed game sessions.
 - `current_question` tracks which question is being displayed (0 = lobby/waiting).
 - Questions for a session are retrieved through: `game_sessions.quiz_id` -> `questions.quiz_id`.
 
-### 5. SESSION_PARTICIPANTS
-Tracks which users participated in which game sessions (Junction table).
+### 5. GAME_PARTICIPANTS
+Tracks anonymous players who joined a game session.
 
 **Business Rules:**
-- Links users to game sessions they participated in.
+- Links a player to a game session.
+- Users join using a non-unique `nickname` instead of an account. 
 - Score is cumulative of all points earned in the session.
 - Updated in real-time as player answers questions.
-- Cascade delete when session or user is deleted.
-- One user can only participate once per session (UNIQUE constraint on `session_id` + `user_id`).
-- This table serves as the junction between users and game_sessions (many-to-many relationship).
+- Cascade delete when session is deleted.
+- No user login is required to generate a participant record.
 
 ### 6. PLAYER_ANSWERS
 Stores individual answer submissions during games.
@@ -149,8 +148,7 @@ Stores individual answer submissions during games.
 - Answer is evaluated immediately upon submission.
 - Cascade delete when participant or question is deleted.
 - **Design Note:** Uses `participant_id` instead of separate `session_id` and `player_id` for simpler joins.
-    - To get session info: `player_answers` -> `session_participants` -> `game_sessions`
-    - To get player info: `player_answers` -> `session_participants` -> `users`
+    - To get session info: `player_answers` -> `game_participants` -> `game_sessions`
 
 ## Relationships
 
@@ -176,29 +174,17 @@ Stores individual answer submissions during games.
     - Relationship: `game_sessions.quiz_id` -> `quizzes.quiz_id`
     - Delete: CASCADE
 
-- **GAME_SESSIONS -> SESSION_PARTICIPANTS (1:N)**
+- **GAME_SESSIONS -> GAME_PARTICIPANTS (1:N)**
     - One game session can have many participants.
-    - Relationship: `session_participants.session_id` -> `game_sessions.session_id`
+    - Relationship: `game_participants.session_id` -> `game_sessions.session_id`
     - Delete: CASCADE
 
-- **USERS -> SESSION_PARTICIPANTS (1:N as player)**
-    - One user can participate in many sessions.
-    - Relationship: `session_participants.user_id` -> `users.user_id`
-    - Delete: CASCADE
-
-- **SESSION_PARTICIPANTS -> PLAYER_ANSWERS (1:N)**
+- **GAME_PARTICIPANTS -> PLAYER_ANSWERS (1:N)**
     - One participant can submit many answers.
-    - Relationship: `player_answers.participant_id` -> `session_participants.participant_id`
+    - Relationship: `player_answers.participant_id` -> `game_participants.participant_id`
     - Delete: CASCADE
 
 - **QUESTIONS -> PLAYER_ANSWERS (1:N)**
     - One question can receive many answers (from different participants).
     - Relationship: `player_answers.question_id` -> `questions.question_id`
     - Delete: CASCADE
-
-### Many-to-Many Relationships
-
-- **USERS <-> GAME_SESSIONS** (M:N through SESSION_PARTICIPANTS)
-    - Many users can participate in many sessions.
-    - Implemented through `SESSION_PARTICIPANTS` junction table.
-    - The junction table stores additional data: `score`, `joined_at`.
