@@ -15,7 +15,7 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 
 - **Backend:** Python with Flask
 - **Database:** MySQL
-- **Frontend:** HTML, CSS, JavaScript, Bootstrap
+- **Frontend:** HTML, Tailwind CSS, JavaScript
 - **Real-time:** Flask-SocketIO
 - **Authentication:** Flask-Login
 
@@ -31,6 +31,8 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 - **Create Quizzes**: Users can create and manage their own quizzes
 - **Question Types**: Support for Multiple Choice, True/False, and Fill-in-the-blank
 - **Public/Private**: Option to make quizzes public or keep them private
+- **Link Sharing**: Public quizzes can be freely shared and played without login
+- **Solo Mode**: Interactive UI for players to practice or authors to test their quizzes
 - **Rich Editor**: Easy-to-use interface for adding and editing questions
 - **Advanced (Upcoming)**: Independent study Flashcards view
 - **Advanced (Upcoming)**: AI-Assisted rapid quiz creation from study notes
@@ -47,12 +49,14 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 - ✅ User Authentication (Register, Login, Logout) implemented
 - ✅ Password Hashing & Security integration
 - ✅ User Dashboard custom view implemented
-- ✅ Bootstrap 5 UI integration
+- ✅ UI Overhaul: Re-designed interface with a vibrant Neo-Brutalism aesthetic (Tailwind CSS)
 - ✅ Quiz Creation & Management (CRUD)
 - ✅ Question Management (Multiple Choice, True/False, Fill-in-Blank)
 - ✅ Comprehensive Testing Framework (unittest) implemented
 - ✅ Custom Error Pages (404/500) integrated
 - ✅ Comprehensive Documentation (SRS, ERD, Progress Logs)
+- ✅ Anonymous Link Sharing & Solo Practice Mode implemented
+- ✅ Game Session & Participant Lobby Foundation established
 
 ## Setup Instructions
 
@@ -70,5 +74,5 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 - quizzes
 - questions
 - game_sessions
+- game_participants
 - player_answers
-- session_participants
