@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Session: {{ session.session_code }} - Quiz Platform{% endblock %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center mt-12 mb-32 text-center relative z-0 px-4">
+    <div class="bg-neo-blue neo-card p-12 max-w-4xl w-full">
+        <h2 class="text-3xl md:text-5xl font-black mb-2">Host Lobby</h2>
+        <h3 class="text-xl md:text-2xl font-bold mb-8 text-gray-700">{{ quiz.title }}</h3>
+
+        <div class="bg-white border-4 border-black p-8 mb-10 shadow-neo transform rotate-1">
+            <div class="text-2xl font-bold mb-2">Join at <span class="text-blue-600 underline">{{ host_url }}</span>
+            </div>
+            <div class="text-gray-500 font-semibold text-lg mb-2">with Game Code:</div>
+            <div
+                class="text-7xl md:text-9xl font-black tracking-widest text-neo-pink title-shadow drop-shadow-[4px_4px_0_rgba(0,0,0,1)]">
+                {{ session.session_code }}
+            </div>
+        </div>
+
+        <div class="bg-gray-100 border-4 border-black p-6 mb-10 text-left">
+            <h4 class="text-2xl font-black mb-4 border-b-4 border-black pb-2">Players Waiting (0)</h4>
+            <div id="player-list"
+                class="flex flex-wrap gap-4 min-h-[100px] items-center text-gray-400 font-bold italic">
+                Waiting for players to join... (WebSockets coming Week 9)
+            </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row justify-center gap-4">
+            <button
+                class="neo-btn bg-black text-white px-8 py-4 text-2xl hover:bg-gray-800 flex-1 opacity-50 cursor-not-allowed"
+                disabled>
+                Start Game 🚀
+            </button>
+            <form method="POST" action="{{ url_for('cancel_session', session_id=session.session_id) }}" class="flex-1">
+                <button type="submit" class="neo-btn bg-neo-red px-8 py-4 text-xl w-full hover:bg-red-300 h-full">
+                    Cancel Session 🛑
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .title-shadow {
+        text-shadow: 4px 4px 0px #000;
+    }
+</style>
+{% endblock %}
