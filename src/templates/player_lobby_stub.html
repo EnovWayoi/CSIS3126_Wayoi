@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Waiting for Host... - Quiz Platform{% endblock %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center mt-20 mb-32 text-center relative z-0 px-4">
+    <div class="bg-neo-green neo-card p-12 max-w-2xl w-full">
+        <h2 class="text-4xl md:text-6xl font-black mb-6 animate-pulse">Waiting for Host...</h2>
+
+        <p class="text-xl font-semibold mb-8 text-black">
+            You're in! Get ready to play. The host will start the game shortly.
+        </p>
+
+        <div class="bg-white border-4 border-black p-6 mb-10 shadow-neo transform rotate-2">
+            <div class="text-gray-500 font-bold mb-1">Your Nickname:</div>
+            <div class="text-4xl font-black text-neo-blue">{{ nickname }}</div>
+        </div>
+
+        <div class="bg-white border-4 border-black p-6 mb-10 shadow-neo transform -rotate-1 hidden"
+            id="game-info-coming-soon">
+            <div class="text-gray-500 font-bold mb-1">Coming Week 9:</div>
+            <div class="text-lg font-black text-neo-pink">Live WebSockets & Real-time Gameplay!</div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row justify-center gap-4">
+            <a href="{{ url_for('index') }}"
+                class="neo-btn bg-black text-white px-8 py-4 text-xl hover:bg-gray-800 tracking-wide">
+                Leave Game 🚪
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
