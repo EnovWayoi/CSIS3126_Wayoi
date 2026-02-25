@@ -23,7 +23,7 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 
 ### 👤 User Authentication
 - Secure registration and login
-- Password hashing with bcrypt
+- Password hashing with Werkzeug (scrypt/pbkdf2)
 - User session management
 - Personalized dashboard
 
