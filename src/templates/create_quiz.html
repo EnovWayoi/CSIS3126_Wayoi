@@ -3,44 +3,45 @@
 {% block title %}Create Quiz - Quiz Platform{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0">📝 Create New Quiz</h4>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('create_quiz') }}">
-                    <div class="mb-3">
-                        <label for="title" class="form-label">Quiz Title <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="title" name="title"
-                               placeholder="Enter quiz title" required maxlength="200">
-                    </div>
+<div class="flex justify-center mt-8 mb-20 relative z-0">
+    <div class="w-full max-w-2xl">
+        <div class="bg-neo-green neo-card p-8">
+            <h2 class="text-3xl font-black text-center mb-8">📝 Create New Quiz</h2>
 
-                    <div class="mb-3">
-                        <label for="description" class="form-label">Description</label>
-                        <textarea class="form-control" id="description" name="description"
-                                  rows="4" placeholder="Describe your quiz (optional)"></textarea>
-                    </div>
+            <form method="POST" action="{{ url_for('create_quiz') }}" class="flex flex-col gap-6">
+                <div>
+                    <label for="title" class="block font-bold mb-2">Quiz Title <span
+                            class="text-red-600">*</span></label>
+                    <input type="text" class="neo-input bg-white" id="title" name="title" placeholder="Enter quiz title"
+                        required maxlength="200">
+                </div>
 
-                    <div class="mb-4">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="is_public" name="is_public">
-                            <label class="form-check-label" for="is_public">
-                                Make this quiz public
-                            </label>
-                            <small class="form-text text-muted d-block">
-                                Public quizzes can be seen by other users.
-                            </small>
-                        </div>
-                    </div>
+                <div>
+                    <label for="description" class="block font-bold mb-2">Description</label>
+                    <textarea class="neo-input bg-white" id="description" name="description" rows="4"
+                        placeholder="Describe your quiz (optional)"></textarea>
+                </div>
 
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-primary">Create Quiz</button>
+                <div class="bg-white border-2 border-black rounded p-4 shadow-neo-sm flex items-start gap-3">
+                    <input class="w-6 h-6 border-2 border-black rounded accent-neo-blue" type="checkbox" id="is_public"
+                        name="is_public">
+                    <div>
+                        <label class="font-bold cursor-pointer select-none" for="is_public">
+                            Make this quiz public
+                        </label>
+                        <p class="text-sm font-semibold opacity-70 mt-1">
+                            Public quizzes can be seen by other users.
+                        </p>
                     </div>
-                </form>
-            </div>
+                </div>
+
+                <div class="flex justify-between items-center mt-6 gap-4">
+                    <a href="{{ url_for('dashboard') }}"
+                        class="neo-btn bg-white text-black px-6 py-3 hover:bg-gray-100 font-bold">Cancel</a>
+                    <button type="submit" class="neo-btn bg-black text-white px-8 py-3 text-lg hover:bg-gray-800">Create
+                        Quiz ✨</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
