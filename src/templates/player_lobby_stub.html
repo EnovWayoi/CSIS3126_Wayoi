@@ -16,10 +16,9 @@
             <div class="text-4xl font-black text-neo-blue">{{ nickname }}</div>
         </div>
 
-        <div class="bg-white border-4 border-black p-6 mb-10 shadow-neo transform -rotate-1 hidden"
-            id="game-info-coming-soon">
-            <div class="text-gray-500 font-bold mb-1">Coming Week 9:</div>
-            <div class="text-lg font-black text-neo-pink">Live WebSockets & Real-time Gameplay!</div>
+        <div class="bg-white border-4 border-black p-6 mb-10 shadow-neo transform -rotate-1" id="connection-status">
+            <div class="text-gray-500 font-bold mb-1">Status:</div>
+            <div class="text-lg font-black text-neo-pink" id="status-text">Connecting to Live Server...</div>
         </div>
 
         <div class="flex flex-col sm:flex-row justify-center gap-4">
@@ -30,4 +29,46 @@
         </div>
     </div>
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const socket = io();
+        const sessionCode = "{{ session.session_code }}";
+        const nickname = "{{ nickname }}";
+        const statusText = document.getElementById("status-text");
+
+        socket.on('connect', function () {
+            statusText.innerText = "Connected! Waiting for host to start...";
+            statusText.classList.replace("text-neo-pink", "text-neo-blue");
+
+            socket.emit('join_room_event', {
+                session_code: sessionCode,
+                nickname: nickname
+            });
+        });
+
+        socket.on('disconnect', function () {
+            statusText.innerText = "Disconnected. Trying to reconnect...";
+            statusText.classList.replace("text-neo-blue", "text-neo-red");
+        });
+
+        // Listen for session cancellation
+        socket.on('session_cancelled', function () {
+            statusText.innerText = "Session Cancelled by Host.";
+            statusText.classList.remove("text-neo-blue", "text-neo-pink");
+            statusText.classList.add("text-neo-red", "animate-bounce");
+
+            setTimeout(() => {
+                window.location.href = "{{ url_for('index') }}";
+            }, 2000);
+        });
+
+        // Listen for game_start event (coming in week 10, placeholder)
+        socket.on('game_start', function () {
+            statusText.innerText = "Game is starting!";
+            // Future: window.location.href = `/play/${sessionCode}`;
+        });
+    });
+</script>
 {% endblock %}
