@@ -360,12 +360,11 @@ None.
 ## Week 12
 
 ### Work Completed
-- [ ] Unit tests written for game session logic
-- [ ] Integration testing of WebSockets and live functionality
-- [ ] Manual testing with concurrent players across browser tabs
-- [ ] Security testing and payload validation
-- [ ] Test results documented and bugs identified and fixed
-- [ ] Checkpoint 2: Demonstration of testing
+- [ ] Advanced Feature: Independent study Flashcards view
+- [ ] Advanced Feature: AI-Assisted quiz generation from topic/notes
+- [ ] Tutorial for first-time users
+- [ ] Mobile responsiveness improved
+- [ ] Accessibility improvements
 
 ### Progress Summary
 [To be filled in]
@@ -384,15 +383,13 @@ None.
 ## Week 13
 
 ### Work Completed
-- [ ] Loading spinners added
-- [ ] Mobile responsiveness improved
-- [ ] Help documentation added
-- [ ] Tutorial for first-time users
-- [ ] Visual design polish
-- [ ] Success animations
-- [ ] Button states and hover effects
-- [ ] Accessibility improvements
-- [ ] Advanced Feature: Independent study Flashcards view
+- [ ] Unit tests written for game session logic
+- [ ] Integration testing of WebSockets and live functionality
+- [ ] Manual testing with concurrent players across browser tabs
+- [ ] Automated testing coverage expanded for AI routes
+- [ ] Input validation strengthened
+- [ ] Security testing and payload validation
+- [ ] Checkpoint 2: Demonstration of testing
 
 ### Progress Summary
 [To be filled in]
@@ -411,17 +408,14 @@ None.
 ## Week 14
 
 ### Work Completed
-- [ ] Advanced Feature: AI-Assisted quiz generation from topic/notes
-- [ ] Automated testing coverage expanded for game session and AI routes
-- [ ] Code refactoring
+- [ ] Loading spinners added
+- [ ] Visual design polish and Success animations
+- [ ] Button states and hover effects
+- [ ] Code refactoring and Performance optimization
 - [ ] Code comments and docstrings added
 - [ ] Fixed remaining bugs
-- [ ] Performance optimization
 - [ ] Database indexes added
-- [ ] Input validation strengthened
 - [ ] Error logging implemented
-- [ ] Environment variables configured
-- [ ] HTTPS configuration prepared
 - [ ] Security review and hardening
 
 ### Progress Summary
