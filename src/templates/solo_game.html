@@ -3,19 +3,22 @@
 {% block title %}Solo Mode: {{ quiz.title }}{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto mb-20" id="game-app">
+<div class="max-w-4xl mx-auto w-full flex flex-col flex-1 pb-1 sm:pb-4 min-h-0" style="height: calc(100dvh - 160px);"
+    id="game-app">
     <!-- Header Area -->
-    <div class="bg-neo-blue neo-card p-6 mb-8 flex justify-between items-center relative">
-        <div class="flex flex-col">
-            <h1 class="text-3xl font-black truncate max-w-lg" title="{{ quiz.title }}">{{ quiz.title }}</h1>
+    <div
+        class="bg-neo-blue neo-card p-2 sm:p-3 md:p-6 mb-2 sm:mb-4 shrink-0 flex flex-col md:flex-row justify-between items-start md:items-center relative gap-2 md:gap-0">
+        <div class="flex flex-col w-full pr-6 md:pr-4 min-w-0">
+            <h1 class="text-xl sm:text-2xl md:text-3xl font-black break-words" title="{{ quiz.title }}">{{ quiz.title }}
+            </h1>
             <span
-                class="font-bold text-gray-700 bg-white border-2 border-black px-2 py-0.5 mt-2 self-start shadow-neo-sm">Solo
+                class="font-bold text-gray-700 bg-white border-2 border-black px-1.5 py-0.5 mt-1 sm:mt-2 self-start shadow-neo-sm text-xs sm:text-base">Solo
                 Mode 🎮</span>
         </div>
 
-        <div class="flex gap-4 font-black text-xl">
+        <div class="flex gap-4 font-black text-lg sm:text-xl shrink-0 mt-2 md:mt-0">
             <div id="score-display"
-                class="bg-neo-yellow border-4 border-black px-4 py-2 shadow-neo-sm transform rotate-2">
+                class="bg-neo-yellow border-4 border-black px-3 py-1 sm:px-4 sm:py-2 shadow-neo-sm transform rotate-2 whitespace-nowrap">
                 Score: 0
             </div>
         </div>
@@ -27,36 +30,45 @@
     </div>
 
     <!-- Active Game Container -->
-    <div id="question-container" class="hidden">
-        <div class="bg-white neo-card p-4 md:p-8 flex flex-col relative min-h-[60vh] md:min-h-[500px] h-auto">
+    <div id="question-container" class="hidden flex-col flex-1 min-h-0">
+        <div class="bg-white neo-card p-3 sm:p-4 md:p-8 flex flex-col relative flex-1 min-h-0">
             <!-- Timer Bar -->
-            <div class="absolute top-0 left-0 w-full h-3 bg-gray-200 border-b-4 border-black border-dashed">
+            <div class="absolute top-0 left-0 w-full h-2 sm:h-3 bg-gray-200 border-b-4 border-black border-dashed">
                 <div id="timer-bar" class="h-full bg-neo-red w-full transition-all ease-linear"></div>
             </div>
 
-            <div class="mt-4 flex justify-between items-center mb-6 font-bold text-gray-500 text-lg">
+            <div
+                class="mt-3 sm:mt-4 flex justify-between items-center mb-3 sm:mb-6 font-bold text-gray-500 text-sm sm:text-lg shrink-0">
                 <span id="question-counter">Question 1/X</span>
-                <span id="timer-text" class="text-black bg-neo-pink px-3 py-1 border-2 border-black shadow-neo-sm"><span
+                <span id="timer-text"
+                    class="text-black bg-neo-pink px-2 py-0.5 sm:px-3 sm:py-1 border-2 border-black shadow-neo-sm"><span
                         id="time-left">0</span>s</span>
             </div>
 
-            <h2 id="question-text" class="text-3xl md:text-5xl font-black mb-8 leading-tight">Question Text</h2>
+            <div class="flex flex-col flex-1 justify-center items-center w-full min-h-0 max-h-full">
+                <div class="w-full flex-1 flex items-center justify-center min-h-0 overflow-y-auto mb-3 sm:mb-6">
+                    <h2 id="question-text"
+                        class="text-xl sm:text-3xl md:text-5xl font-black w-full text-center break-words pb-1">Question
+                        Text</h2>
+                </div>
 
-            <!-- Options Area -->
-            <div id="options-area" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-auto">
-                <!-- Buttons injected via JS -->
+                <!-- Options Area -->
+                <div id="options-area" class="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 w-full shrink-0">
+                    <!-- Buttons injected via JS -->
+                </div>
             </div>
         </div>
 
         <!-- Next Button Container -->
-        <div id="next-button-container" class="mt-6 text-right hidden">
-            <button id="next-button" class="neo-btn bg-neo-green text-2xl px-12 py-4">Next &rarr;</button>
+        <div id="next-button-container" class="mt-4 text-center hidden shrink-0">
+            <button id="next-button" class="neo-btn bg-neo-green text-xl md:text-2xl px-12 py-3 w-full md:w-auto">Next
+                &rarr;</button>
         </div>
     </div>
 
     <!-- Results Container -->
-    <div id="results-container" class="hidden mt-12 text-center">
-        <div class="bg-neo-pink neo-card p-12 max-w-2xl mx-auto">
+    <div id="results-container" class="hidden flex-col flex-1 mt-4 text-center justify-center">
+        <div class="bg-neo-pink neo-card p-8 md:p-12 max-w-2xl mx-auto w-full">
             <h2 class="text-6xl font-black mb-4 tracking-tighter title-skew">Game Over!</h2>
             <div class="text-2xl font-bold mb-8 text-gray-800">Your Final Score</div>
 
@@ -172,17 +184,14 @@
     const finalScore = document.getElementById('final-score');
 
     function startGame() {
-        if (questions.length === 0) {
-            alert("This quiz has no questions! Add some before playing.");
-            window.location.href = "{{ url_for('view_quiz', quiz_id=quiz.quiz_id) }}";
-            return;
-        }
         currentQuestionIndex = 0;
         score = 0;
         maxPossibleScore = questions.reduce((sum, q) => sum + q.points, 0);
         updateScore(0);
         rContainer.classList.add('hidden');
+        rContainer.classList.remove('flex');
         qContainer.classList.remove('hidden');
+        qContainer.classList.add('flex');
         loadQuestion();
     }
 
@@ -199,9 +208,9 @@
 
         if (q.type === 'fill_blank') {
             optionsArea.innerHTML = `
-                <div class="col-span-full">
-                    <input type="text" id="fill-blank-input" class="neo-input bg-white w-full text-2xl py-4" placeholder="Type your answer here..." autocomplete="off">
-                    <button id="submit-answer-btn" class="neo-btn bg-black text-white mt-4 text-xl px-8 py-3 w-full">Submit</button>
+                <div class="col-span-2 md:col-span-2" id="fill-blank-container">
+                    <input type="text" id="fill-blank-input" class="neo-input bg-white w-full text-base sm:text-2xl py-2 sm:py-4" placeholder="Type answer..." autocomplete="off">
+                    <button id="submit-answer-btn" class="neo-btn bg-black text-white mt-4 text-base sm:text-xl px-4 sm:px-8 py-2 sm:py-3 w-full">Submit</button>
                 </div>
             `;
             document.getElementById('submit-answer-btn').addEventListener('click', () => {
@@ -224,10 +233,10 @@
             keys.forEach((key, index) => {
                 if (q.options[key]) {
                     const btn = document.createElement('button');
-                    btn.className = `option-btn neo-card ${colors[index]} p-4 md:p-6 text-xl md:text-2xl font-bold flex items-center text-left min-h-[80px] hover:brightness-95 w-full leading-tight`;
+                    btn.className = `option-btn neo-card ${colors[index]} p-1 sm:p-4 md:p-6 text-xs sm:text-xl md:text-2xl font-bold flex flex-col sm:flex-row items-center sm:items-center text-center sm:text-left min-h-0 sm:min-h-[60px] md:min-h-[80px] hover:brightness-95 w-full leading-tight shrink-0 gap-1 sm:gap-0`;
                     // Add prefix unless true/false
-                    const prefix = q.type === 'true_false' ? '' : `<span class="mr-3 bg-white border-2 border-black rounded px-2 py-1 shadow-neo-sm shrink-0 flex items-center justify-center">${key}</span>`;
-                    btn.innerHTML = `${prefix}<span class="flex-1 break-words">${q.options[key]}</span>`;
+                    const prefix = q.type === 'true_false' ? '' : `<span class="sm:mr-3 bg-white border-2 border-black rounded px-1 py-0.5 sm:px-2 sm:py-1 shadow-neo-sm shrink-0 flex items-center justify-center">${key}</span>`;
+                    btn.innerHTML = `${prefix}<span class="flex-1 break-words min-w-0">${q.options[key]}</span>`;
                     btn.dataset.key = key;
                     btn.addEventListener('click', () => submitAnswer(key));
                     optionsArea.appendChild(btn);
@@ -300,7 +309,7 @@
                 const corr = document.createElement('div');
                 corr.className = 'mt-4 text-xl font-bold bg-white border-4 border-black p-4 text-center text-green-700 shadow-neo';
                 corr.innerHTML = `Correct answer: ${correctAnswer}`;
-                optionsArea.querySelector('.col-span-full').appendChild(corr);
+                document.getElementById('fill-blank-container').appendChild(corr);
             }
         } else {
             const btns = document.querySelectorAll('.option-btn');
@@ -333,7 +342,9 @@
 
     function endGame() {
         qContainer.classList.add('hidden');
+        qContainer.classList.remove('flex');
         rContainer.classList.remove('hidden');
+        rContainer.classList.add('flex');
 
         // Display max score and feedback
         document.getElementById('max-score').innerText = maxPossibleScore;
