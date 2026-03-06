@@ -22,15 +22,16 @@
         </div>
 
         <div class="bg-gray-100 border-4 border-black p-4 md:p-6 mb-8 md:mb-10 text-left">
-            <h4 class="text-xl md:text-2xl font-black mb-4 border-b-4 border-black pb-2">Players Waiting (0)</h4>
+            <h4 id="players-title" class="text-xl md:text-2xl font-black mb-4 border-b-4 border-black pb-2">Players
+                Waiting (0)</h4>
             <div id="player-list"
                 class="flex flex-wrap gap-4 min-h-[80px] md:min-h-[100px] items-center text-gray-400 font-bold italic text-sm md:text-base">
-                Waiting for players to join... (WebSockets coming Week 9)
+                Waiting for players to join...
             </div>
         </div>
 
         <div class="flex flex-col sm:flex-row justify-center gap-4 w-full">
-            <button
+            <button id="start-game-btn"
                 class="neo-btn bg-black text-white px-4 md:px-8 py-4 text-xl md:text-2xl hover:bg-gray-800 w-full sm:flex-1 opacity-50 cursor-not-allowed"
                 disabled>
                 Start Game 🚀
@@ -51,4 +52,52 @@
         text-shadow: 4px 4px 0px #000;
     }
 </style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const socket = io();
+        const sessionCode = "{{ session.session_code }}";
+        const playerListDiv = document.getElementById("player-list");
+        const playersTitle = document.getElementById("players-title");
+        const startGameBtn = document.getElementById("start-game-btn");
+
+        socket.on('connect', function () {
+            socket.emit('join_room_event', {
+                session_code: sessionCode,
+                nickname: 'HOST'
+            });
+            socket.emit('request_players', { session_code: sessionCode });
+        });
+
+        socket.on('player_joined', function (data) {
+            socket.emit('request_players', { session_code: sessionCode });
+        });
+
+        socket.on('update_players', function (data) {
+            const players = data.players;
+            playersTitle.innerText = `Players Waiting (${players.length})`;
+
+            if (players.length > 0) {
+                playerListDiv.innerHTML = '';
+                playerListDiv.classList.remove('text-gray-400', 'italic');
+
+                players.forEach(p => {
+                    const badge = document.createElement('span');
+                    badge.className = 'bg-white text-black px-3 py-1 neo-card font-bold text-lg';
+                    badge.innerText = p.nickname;
+                    playerListDiv.appendChild(badge);
+                });
+
+                startGameBtn.disabled = false;
+                startGameBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                playerListDiv.innerHTML = 'Waiting for players to join...';
+                playerListDiv.classList.add('text-gray-400', 'italic');
+                startGameBtn.disabled = true;
+                startGameBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        });
+    });
+</script>
 {% endblock %}
