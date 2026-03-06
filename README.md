@@ -40,7 +40,7 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 ### 🎮 Live Game Sessions
 - **Room-based Play**: Users join a lobby via room code and wait for the host to start.
 - **Time Countdown**: Questions are timed to increase competitiveness.
-- **Time-based Proportional Scoring**: Points are awarded depending on response speed: `⌊(1 - (({response time} / {question timer}) / 2)) * {points possible}⌉` (Default 1000 points).
+- **Time-based Proportional Scoring**: Points are awarded depending on response speed: `⌊(1 - (({response time} / {question timer}) / 2)) * {points possible}⌉` (Default 10 points).
 
 ## Current Status
 
