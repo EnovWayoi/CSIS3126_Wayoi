@@ -97,6 +97,8 @@
             🎯 Quiz Platform
         </a>
         <div class="flex gap-4 font-bold items-center flex-wrap">
+            <button onclick="document.getElementById('help-modal').classList.remove('hidden')"
+                class="hover:underline decoration-2 underline-offset-4 text-blue-600 mx-2 text-lg">❓ Help</button>
             {% if current_user.is_authenticated %}
             <a class="hover:underline decoration-2 underline-offset-4" href="{{ url_for('dashboard') }}">Dashboard</a>
             <span class="bg-neo-yellow border-2 border-black rounded px-2 py-1 shadow-neo-sm text-sm">Hi, {{
@@ -131,7 +133,7 @@
     </div>
 
     <!-- Main Content -->
-    <main class="max-w-5xl mx-auto px-6 w-full flex-grow mb-12">
+    <main class="max-w-5xl mx-auto px-2 sm:px-6 w-full flex-grow flex flex-col mb-4 md:mb-12">
         {% block content %}{% endblock %}
     </main>
 
@@ -142,6 +144,48 @@
     </footer>
 
     {% block scripts %}{% endblock %}
+    <!-- Help Modal -->
+    <div id="help-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center hidden px-4">
+        <div class="bg-white neo-card max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-8 relative">
+            <button onclick="document.getElementById('help-modal').classList.add('hidden')"
+                class="absolute top-4 right-4 text-3xl font-black hover:scale-110">&times;</button>
+            <h2 class="text-3xl font-black mb-6 border-b-4 border-black pb-2">Platform Help & Documentation</h2>
+
+            <div class="space-y-6">
+                <div>
+                    <h3 class="text-2xl font-bold text-neo-blue mb-2">How to Create a Quiz</h3>
+                    <p class="font-semibold text-gray-700">1. Register or log in to your account.</p>
+                    <p class="font-semibold text-gray-700">2. From the Dashboard, click <strong>Create New
+                            Quiz</strong>.</p>
+                    <p class="font-semibold text-gray-700">3. Add a Title and Description, then click Create.</p>
+                    <p class="font-semibold text-gray-700">4. Add questions (Multiple Choice, True/False, or Fill in the
+                        Blank).</p>
+                </div>
+
+                <div>
+                    <h3 class="text-2xl font-bold text-neo-pink mb-2">How to Host a Game</h3>
+                    <p class="font-semibold text-gray-700">1. On your Dashboard, find the quiz you want to host.</p>
+                    <p class="font-semibold text-gray-700">2. Click the <strong>Host Live Game</strong> button.</p>
+                    <p class="font-semibold text-gray-700">3. A unique 6-character Session Code will be generated.</p>
+                    <p class="font-semibold text-gray-700">4. Ask players to join using this code! Wait for them to
+                        appear in the lobby, then click Start Game.</p>
+                </div>
+
+                <div>
+                    <h3 class="text-2xl font-bold text-neo-green mb-2">How to Join a Game</h3>
+                    <p class="font-semibold text-gray-700">1. Go to the homepage (no account required).</p>
+                    <p class="font-semibold text-gray-700">2. Enter the <strong>Session Code</strong> provided by the
+                        host.</p>
+                    <p class="font-semibold text-gray-700">3. Choose a Nickname and click Join Game.</p>
+                    <p class="font-semibold text-gray-700">4. Wait in the lobby until the host starts the game!</p>
+                </div>
+            </div>
+
+            <button onclick="document.getElementById('help-modal').classList.add('hidden')"
+                class="neo-btn bg-black text-white px-6 py-3 w-full mt-8 text-xl hover:bg-gray-800">Close</button>
+        </div>
+    </div>
+
 </body>
 
 </html>
