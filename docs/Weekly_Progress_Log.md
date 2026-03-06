@@ -273,29 +273,39 @@ Successfully implemented “Link Sharing” allowing anonymous access to public 
 - Install and configure Flask-SocketIO.
 - Establish WebSocket connections for real-time game state management.
 - Complete the Host Game Control Screen and Player Lobby interfaces.
+- Plan and begin implementing in-app context help and documentation (Course Requirement).
 
 ---
 
 ## Week 9
 
 ### Work Completed
-- [ ] Flask-SocketIO installed and configured
-- [ ] WebSocket connection established and error handling added
-- [ ] Host game control screen interface (Implement WebSockets)
-- [ ] Player lobby (Implement WebSockets)
-- [ ] Session participants tracking and real-time player list updates
+- ✅ Flask-SocketIO installed and configured
+- ✅ WebSocket connection established and error handling added
+- ✅ Host game control screen interface (Implement WebSockets)
+- ✅ Player lobby (Implement WebSockets)
+- ✅ Session participants tracking and real-time player list updates
+- ✅ In-app context help and documentation added (Course Requirement)
+- ✅ Prevented hosting/playing quizzes with 0 questions (Bug Fix)
+- ✅ Implemented real-time redirection for players when host cancels session
+- ✅ Optimized Solo Mode for perfectly centered, scroll-free mobile layout
+- ✅ Fixed layout overflow for long titles and answer options
 
 ### Progress Summary
-[To be filled in]
+Successfully integrated Flask-SocketIO to enable real-time WebSocket communication for live game staging. The Host Game Control Screen and Player Lobby now dynamically update as participants join, utilizing a `join_room_event` to seamlessly group users by session code. Additionally, a comprehensive in-app context help modal was integrated into the main navigation bar to meet the course's user documentation requirement, offering quick guides on creating, hosting, and joining quizzes.
 
 ### Impediments/Challenges
-[To be filled in]
+- Restructuring the participant fetching logic to effectively capture anonymous nicknames across various events.
+- Ensuring robust room management via SocketIO so that events are broadcast exclusively to the correct game session.
 
 ### Changes to Plan
-[To be filled in]
+None.
 
 ### Next Week Goals
-[To be filled in]
+- Implement question display for players with a time countdown.
+- Build answer submission functionality and response validation logic.
+- Develop a time-based proportional scoring system.
+- Provide host controls to advance all players to the next question synchronously.
 
 ---
 
