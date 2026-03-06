@@ -4,6 +4,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_socketio import SocketIO, join_room, leave_room, emit
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
 from config.config import db_config
@@ -25,6 +26,9 @@ def get_local_ip():
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this-in-production'
+
+# Initialize SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Flask-Login setup
 login_manager = LoginManager()
@@ -348,6 +352,15 @@ def solo_quiz(quiz_id):
             (quiz_id,)
         )
         questions = cursor.fetchall()
+        
+        if not questions:
+            flash('Cannot play a quiz with no questions. Please add questions first.', 'danger')
+            cursor.close()
+            conn.close()
+            if current_user.is_authenticated:
+                return redirect(url_for('view_quiz', quiz_id=quiz_id))
+            else:
+                return redirect(url_for('index'))
 
         cursor.close()
         conn.close()
@@ -676,6 +689,15 @@ def host_game(quiz_id):
             conn.close()
             return redirect(url_for('dashboard'))
 
+        cursor.execute("SELECT COUNT(*) as count FROM questions WHERE quiz_id = %s", (quiz_id,))
+        question_count = cursor.fetchone()['count']
+
+        if question_count == 0:
+            flash('Cannot host a quiz with 0 questions. Please add questions first.', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('dashboard'))
+
         # Generate a 6-character random alphanumeric session code
         session_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
@@ -716,6 +738,10 @@ def cancel_session(session_id):
         game_session = cursor.fetchone()
 
         if game_session and game_session['host_id'] == current_user.id:
+            # Notify players in the lobby
+            session_code = game_session['session_code']
+            socketio.emit('session_cancelled', room=session_code)
+
             cursor.execute("DELETE FROM game_sessions WHERE session_id = %s", (session_id,))
             conn.commit()
             flash('Game session cancelled successfully.', 'success')
@@ -792,6 +818,46 @@ def join_game():
 
 
 # =============================================
+# WebSocket Events
+# =============================================
+
+@socketio.on('join_room_event')
+def handle_join_room_event(data):
+    session_code = data.get('session_code')
+    nickname = data.get('nickname')
+    
+    if session_code:
+        join_room(session_code)
+        # Broadcast to the room that a player joined
+        emit('player_joined', {'nickname': nickname}, room=session_code)
+
+@socketio.on('request_players')
+def handle_request_players(data):
+    session_code = data.get('session_code')
+    
+    if session_code:
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+            
+            # Get session ID and participants
+            cursor.execute(
+                """SELECT gp.nickname 
+                   FROM game_participants gp
+                   JOIN game_sessions gs ON gp.session_id = gs.session_id
+                   WHERE gs.session_code = %s""",
+                (session_code,)
+            )
+            participants = cursor.fetchall()
+            
+            cursor.close()
+            conn.close()
+            
+            emit('update_players', {'players': participants})
+        except Exception as e:
+            emit('error', {'message': str(e)})
+
+# =============================================
 # Error Handlers
 # =============================================
 
@@ -838,4 +904,4 @@ def show_tables():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
