@@ -92,22 +92,36 @@
     <!-- Navigation Bar -->
     <nav
         class="bg-white border-b-4 border-black px-6 py-4 flex flex-wrap justify-between items-center shadow-[0_4px_0_0_rgba(0,0,0,1)] z-10 relative mb-8">
-        <a class="text-2xl font-black tracking-tight flex items-center gap-2 mb-2 md:mb-0"
-            href="{{ url_for('index') }}">
-            🎯 Quiz Platform
-        </a>
-        <div class="flex gap-4 font-bold items-center flex-wrap">
+        <div class="flex justify-between items-center w-full md:w-auto">
+            <a class="text-2xl font-black tracking-tight flex items-center gap-2" href="{{ url_for('index') }}">
+                🎯 Quiz Platform
+            </a>
+            <!-- Mobile Menu Button -->
+            <button id="mobile-menu-btn" class="md:hidden block text-3xl font-black focus:outline-none"
+                onclick="document.getElementById('nav-links').classList.toggle('hidden')">
+                ☰
+            </button>
+        </div>
+
+        <!-- Navigation Links -->
+        <div id="nav-links"
+            class="w-full md:w-auto mt-4 md:mt-0 hidden md:flex flex-col md:flex-row gap-4 font-bold items-center border-t-2 border-black pt-4 md:border-t-0 md:pt-0">
             <button onclick="document.getElementById('help-modal').classList.remove('hidden')"
-                class="hover:underline decoration-2 underline-offset-4 text-blue-600 mx-2 text-lg">❓ Help</button>
+                class="hover:underline decoration-2 underline-offset-4 text-blue-600 md:mx-2 text-lg w-full text-center md:w-auto py-2 md:py-0">❓
+                Help</button>
             {% if current_user.is_authenticated %}
-            <a class="hover:underline decoration-2 underline-offset-4" href="{{ url_for('dashboard') }}">Dashboard</a>
-            <span class="bg-neo-yellow border-2 border-black rounded px-2 py-1 shadow-neo-sm text-sm">Hi, {{
+            <a class="hover:underline decoration-2 underline-offset-4 w-full md:w-auto block py-2 md:py-0 text-center"
+                href="{{ url_for('dashboard') }}">Dashboard</a>
+            <span
+                class="bg-neo-yellow border-2 border-black rounded px-4 py-2 shadow-neo-sm text-sm inline-block text-center w-full md:w-auto">Hi,
+                {{
                 current_user.username }}</span>
-            <a class="hover:underline decoration-2 underline-offset-4 text-red-600"
+            <a class="hover:underline decoration-2 underline-offset-4 text-red-600 w-full md:w-auto block py-2 md:py-0 text-center"
                 href="{{ url_for('logout') }}">Logout</a>
             {% else %}
-            <a class="hover:underline decoration-2 underline-offset-4" href="{{ url_for('login') }}">Login</a>
-            <a class="neo-btn bg-neo-pink px-4 py-2 hover:-translate-y-1 hover:shadow-neo"
+            <a class="hover:underline decoration-2 underline-offset-4 w-full md:w-auto block py-2 md:py-0 text-center text-lg"
+                href="{{ url_for('login') }}">Login</a>
+            <a class="neo-btn bg-neo-pink px-4 py-3 hover:-translate-y-1 hover:shadow-neo w-full text-center md:w-auto block text-lg"
                 href="{{ url_for('register') }}">Register</a>
             {% endif %}
         </div>
