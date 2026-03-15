@@ -39,8 +39,10 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 
 ### 🎮 Live Game Sessions
 - **Room-based Play**: Users join a lobby via room code and wait for the host to start.
-- **Time Countdown**: Questions are timed to increase competitiveness.
-- **Time-based Proportional Scoring**: Points are awarded depending on response speed: `⌊(1 - (({response time} / {question timer}) / 2)) * {points possible}⌉` (Default 10 points).
+- **Real-time Socket.IO**: Live gameplay is driven by WebSocket connections to ensure minimal latency for answers and question transitions.
+- **Dynamic Time Limits**: Questions have distinct default timers based on type (MC: 15s, T/F: 10s, Fill-in-Blank: 20s).
+- **Proportional Scoring & Streaks**: Points are rewarded based on response speed: `⌊(1 - (({response time} / {question timer}) / 2)) * {points possible}⌉`. Consecutive correct answers generate a streak bonus of up to +5 points.
+- **Host Controls**: Hosts control the pace of the game, manually advancing questions while tracking how many players have answered.
 
 ## Current Status
 
@@ -57,6 +59,8 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 - ✅ Comprehensive Documentation (SRS, ERD, Progress Logs)
 - ✅ Anonymous Link Sharing & Solo Practice Mode implemented
 - ✅ Game Session & Participant Lobby Foundation established
+- ✅ Live Game Play Flow (Host controls, real-time question display, answer submissions)
+- ✅ Dynamic Proportional Scoring & Streak Bonus system implemented
 
 ## Setup Instructions
 
