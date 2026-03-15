@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}Hosting: {{ session.quiz_title }} - Quiz Platform{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto w-full flex flex-col flex-1 pb-1 sm:pb-4 min-h-0" style="height: calc(100dvh - 160px);"
+    id="host-app">
+    <!-- Header Area -->
+    <div
+        class="bg-neo-blue neo-card p-2 sm:p-3 md:p-6 mb-2 sm:mb-4 shrink-0 flex flex-col md:flex-row justify-between items-start md:items-center relative gap-2 md:gap-0">
+        <div class="flex flex-col w-full pr-6 md:pr-4 min-w-0">
+            <h1 class="text-xl sm:text-2xl md:text-3xl font-black break-words" title="{{ session.quiz_title }}">
+                {{ session.quiz_title }}
+            </h1>
+            <span
+                class="font-bold text-gray-700 bg-white border-2 border-black px-1.5 py-0.5 mt-1 sm:mt-2 self-start shadow-neo-sm text-xs sm:text-base">
+                🎮 Live Game — Code: {{ session.session_code }}
+            </span>
+        </div>
+
+        <div class="flex gap-4 font-black text-lg sm:text-xl shrink-0 mt-2 md:mt-0">
+            <div id="answer-count-display"
+                class="bg-neo-yellow border-4 border-black px-3 py-1 sm:px-4 sm:py-2 shadow-neo-sm transform rotate-2 whitespace-nowrap">
+                Answers: 0/0
+            </div>
+        </div>
+    </div>
+
+    <!-- Waiting to Start View (shown initially) -->
+    <div id="waiting-view" class="flex flex-col flex-1 items-center justify-center text-center">
+        <div class="bg-white neo-card p-8 md:p-12 max-w-2xl w-full">
+            <h2 class="text-3xl md:text-5xl font-black mb-6 animate-pulse">Get Ready!</h2>
+            <p class="text-xl font-bold text-gray-600 mb-8">Click the button below to show the first question to all
+                players.</p>
+            <button id="show-first-question-btn"
+                class="neo-btn bg-neo-green px-8 py-4 text-2xl md:text-3xl w-full hover:brightness-95">
+                Show First Question ▶️
+            </button>
+        </div>
+    </div>
+
+    <!-- Active Question View (hidden initially) -->
+    <div id="question-view" class="hidden flex-col flex-1 min-h-0">
+        <div class="bg-white neo-card p-3 sm:p-4 md:p-8 flex flex-col relative flex-1 min-h-0">
+            <!-- Timer Bar -->
+            <div class="absolute top-0 left-0 w-full h-2 sm:h-3 bg-gray-200 border-b-4 border-black border-dashed">
+                <div id="timer-bar" class="h-full bg-neo-red w-full transition-all ease-linear"></div>
+            </div>
+
+            <div
+                class="mt-3 sm:mt-4 flex justify-between items-center mb-3 sm:mb-6 font-bold text-gray-500 text-sm sm:text-lg shrink-0">
+                <span id="question-counter">Question 1/{{ total_questions }}</span>
+                <span id="timer-text"
+                    class="text-black bg-neo-pink px-2 py-0.5 sm:px-3 sm:py-1 border-2 border-black shadow-neo-sm">
+                    <span id="time-left">0</span>s
+                </span>
+            </div>
+
+            <div class="flex flex-col flex-1 justify-center items-center w-full min-h-0 max-h-full">
+                <div class="w-full flex-1 flex items-center justify-center min-h-0 overflow-y-auto mb-3 sm:mb-6">
+                    <h2 id="question-text"
+                        class="text-xl sm:text-3xl md:text-5xl font-black w-full text-center break-words pb-1">
+                        Question Text</h2>
+                </div>
+
+                <!-- Host sees answer options (with correct highlighted) -->
+                <div id="options-area" class="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 w-full shrink-0">
+                    <!-- Options injected via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Next Question Button -->
+        <div id="next-question-container" class="mt-4 text-center hidden shrink-0">
+            <button id="next-question-btn" class="neo-btn bg-neo-green text-xl md:text-2xl px-12 py-3 w-full md:w-auto">
+                Next Question ➡️
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Over View (hidden initially) -->
+    <div id="game-over-view" class="hidden flex-col flex-1 mt-4 text-center justify-center">
+        <div class="bg-neo-pink neo-card p-8 md:p-12 max-w-2xl mx-auto w-full">
+            <h2 class="text-5xl md:text-6xl font-black mb-6 tracking-tighter title-skew">Game Over!</h2>
+            <p class="text-xl font-bold text-gray-700 mb-8">All questions have been answered.</p>
+
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="{{ url_for('dashboard') }}"
+                    class="neo-btn bg-black text-white px-8 py-4 text-xl flex-1 text-center">Back to Dashboard</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .title-skew {
+        transform: skewX(-5deg);
+        display: inline-block;
+    }
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const socket = io();
+        const sessionCode = "{{ session.session_code }}";
+
+        // DOM elements
+        const waitingView = document.getElementById("waiting-view");
+        const questionView = document.getElementById("question-view");
+        const gameOverView = document.getElementById("game-over-view");
+        const showFirstBtn = document.getElementById("show-first-question-btn");
+        const nextQuestionBtn = document.getElementById("next-question-btn");
+        const nextQuestionContainer = document.getElementById("next-question-container");
+        const questionText = document.getElementById("question-text");
+        const optionsArea = document.getElementById("options-area");
+        const qCounter = document.getElementById("question-counter");
+        const timeLeftEl = document.getElementById("time-left");
+        const timerBar = document.getElementById("timer-bar");
+        const answerCountDisplay = document.getElementById("answer-count-display");
+
+        let timerInterval = null;
+        let answersReceived = 0;
+        let totalPlayers = 0;
+        let currentCorrectAnswer = null;
+
+        // Join the SocketIO room as HOST
+        socket.on('connect', function () {
+            socket.emit('join_room_event', {
+                session_code: sessionCode,
+                nickname: 'HOST'
+            });
+        });
+
+        // Show first question button click
+        showFirstBtn.addEventListener('click', function () {
+            socket.emit('host_next_question', { session_code: sessionCode });
+            showFirstBtn.disabled = true;
+            showFirstBtn.innerText = 'Loading...';
+        });
+
+        // Next question button click
+        nextQuestionBtn.addEventListener('click', function () {
+            nextQuestionContainer.classList.add('hidden');
+            socket.emit('host_next_question', { session_code: sessionCode });
+        });
+
+        // Receive new question from server
+        socket.on('new_question', function (data) {
+            // Reset state
+            answersReceived = 0;
+            currentCorrectAnswer = null;
+
+            // Switch to question view
+            waitingView.classList.add('hidden');
+            gameOverView.classList.add('hidden');
+            gameOverView.classList.remove('flex');
+            questionView.classList.remove('hidden');
+            questionView.classList.add('flex');
+            nextQuestionContainer.classList.add('hidden');
+
+            // Update question counter
+            qCounter.innerText = `Question ${data.question_number}/${data.total_questions}`;
+
+            // Update question text
+            questionText.innerText = data.question_text;
+
+            // Update answer count display
+            // We need to know how many players there are from the server event
+            answerCountDisplay.innerText = `Answers: 0/?`;
+
+            // Build option display (host sees all options, correct will be highlighted on round end)
+            optionsArea.innerHTML = '';
+            const colors = ['bg-neo-blue', 'bg-neo-pink', 'bg-neo-yellow', 'bg-neo-green'];
+            const keys = ['A', 'B', 'C', 'D'];
+
+            if (data.question_type === 'fill_blank') {
+                optionsArea.innerHTML = `
+                    <div class="col-span-2 bg-white border-4 border-black p-6 text-center shadow-neo">
+                        <span class="text-xl md:text-2xl font-bold text-gray-500 italic">Fill in the Blank — Players are typing...</span>
+                    </div>
+                `;
+            } else {
+                keys.forEach((key, index) => {
+                    const optionValue = data[`option_${key.toLowerCase()}`];
+                    if (optionValue) {
+                        const div = document.createElement('div');
+                        div.className = `${colors[index]} border-4 border-black p-3 sm:p-4 md:p-6 text-sm sm:text-xl md:text-2xl font-bold flex items-center text-left min-h-[50px] sm:min-h-[60px] md:min-h-[80px] shadow-neo-sm`;
+                        div.dataset.key = key;
+                        const prefix = data.question_type === 'true_false' ? '' : `<span class="mr-3 bg-white border-2 border-black rounded px-2 py-1 shadow-neo-sm shrink-0">${key}</span>`;
+                        div.innerHTML = `${prefix}<span class="flex-1 break-words min-w-0">${optionValue}</span>`;
+                        optionsArea.appendChild(div);
+                    }
+                });
+            }
+
+            // Start countdown timer for host display
+            startTimer(data.time_limit);
+        });
+
+        // Timer function
+        function startTimer(seconds) {
+            clearInterval(timerInterval);
+            let timeLeft = seconds;
+            timeLeftEl.innerText = timeLeft;
+            timerBar.style.width = '100%';
+            timerBar.style.transitionDuration = '1s';
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timeLeftEl.innerText = timeLeft;
+                const pct = (timeLeft / seconds) * 100;
+                timerBar.style.width = `${pct}%`;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                }
+            }, 1000);
+        }
+
+        // Track player answers
+        socket.on('player_answered', function (data) {
+            answersReceived++;
+            answerCountDisplay.innerText = `Answers: ${answersReceived}`;
+        });
+
+        // Round ended — all players answered or time ran out
+        socket.on('round_ended', function (data) {
+            clearInterval(timerInterval);
+            nextQuestionContainer.classList.remove('hidden');
+        });
+
+        // Game over
+        socket.on('game_over', function (data) {
+            clearInterval(timerInterval);
+            questionView.classList.add('hidden');
+            questionView.classList.remove('flex');
+            waitingView.classList.add('hidden');
+            gameOverView.classList.remove('hidden');
+            gameOverView.classList.add('flex');
+        });
+    });
+</script>
+{% endblock %}
