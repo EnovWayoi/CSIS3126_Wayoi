@@ -104,6 +104,7 @@ CREATE TABLE game_participants (
     session_id INT NOT NULL,
     nickname VARCHAR(50) NOT NULL,
     score INT DEFAULT 0,
+    streak INT DEFAULT 0,
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     FOREIGN KEY (session_id) REFERENCES game_sessions(session_id) ON DELETE CASCADE,
