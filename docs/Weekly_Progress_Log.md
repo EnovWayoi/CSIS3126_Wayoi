@@ -314,24 +314,35 @@ None.
 ## Week 10
 
 ### Work Completed
-- [ ] Question display for players with time countdown
-- [ ] Answer submission functionality and validation logic
-- [ ] Time-based proportional scoring system implementation
-- [ ] Points calculation: `⌊(1 - (({response time} / {question timer}) / 2)) * {points possible}⌉`
-- [ ] Player scores updated in database
-- [ ] Host controls to advance all players to the next question
+- ✅ Question display for players with time countdown
+- ✅ Answer submission functionality and validation logic
+- ✅ Auto-end round early if all players submit answers
+- ✅ Time-based proportional scoring system implementation
+- ✅ Points calculation: `⌊(1 - (({response time} / {question timer}) / 2)) * {points possible}⌉`
+- ✅ Host toggle for optional streak bonus
+- ✅ Answer streak tracking and reset on incorrect
+- ✅ Streak bonus points calculation (caps at +5 pts)
+- ✅ Player scores and streaks updated in database
+- ✅ Host controls to advance all players to the next question
 
 ### Progress Summary
-[To be filled in]
+Implemented the complete live game play flow. The host lobby now features a "Streak Bonus" toggle and a wired "Start Game" button that transitions the session to active via WebSocket. Two new templates were created: `host_game.html` (host control screen with question display, answer count tracking, timer, and Next Question button) and `player_game.html` (player game screen with interactive answer cards, countdown timer, real-time scoring feedback, streak display, and game over summary). All scoring uses a server-side time-based proportional formula with optional streak bonuses. When all players answer, the round auto-ends early. The `game_participants` table was updated with a `streak` column to persist answer streaks across questions.
 
 ### Impediments/Challenges
-[To be filled in]
+- Coordinating server-side timestamps with client-side countdown timers for accurate proportional scoring required careful design to prevent cheating via client manipulation.
+- Managing in-memory game state (`active_games` dictionary) alongside database persistence needed attention to avoid race conditions when multiple players submit answers simultaneously.
+- Ensuring smooth view transitions on the player game screen (waiting → question → feedback → between rounds → game over) required careful state management in JavaScript.
 
 ### Changes to Plan
-[To be filled in]
+- Added `streak` column to `game_participants` table to support answer streak tracking.
+- Created an in-memory `active_games` dictionary for tracking question start times and answer counts, since these are transient values that don't need database persistence.
 
 ### Next Week Goals
-[To be filled in]
+- Build real-time leaderboard view
+- Implement answer distribution bar chart for host
+- Add player feedback with current rank and gap comparison messages
+- Create final results podium/screen
+- Implement game end notification broadcast
 
 ---
 
@@ -339,10 +350,9 @@ None.
 
 ### Work Completed
 - [ ] Real-time leaderboard view created
+- [ ] Host screen: Answer distribution bar chart reveal
 - [ ] Leaderboard updates triggered by answer submissions
-- [ ] Answer feedback (correct/incorrect) shown immediately to players
-- [ ] Points animation and visual feedback
-- [ ] Game end notification broadcast
+- [ ] Player feedback: Current rank and gap comparison messages
 - [ ] Final results podium/screen
 
 ### Progress Summary
