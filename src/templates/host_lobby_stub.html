@@ -21,6 +21,17 @@
             </div>
         </div>
 
+        <!-- Streak Bonus Toggle -->
+        <div class="bg-neo-yellow border-4 border-black p-4 mb-8 shadow-neo flex items-center justify-center gap-4">
+            <span class="text-lg md:text-xl font-black select-none">🔥 Streak Bonus</span>
+            <label for="streak-toggle" class="relative cursor-pointer">
+                <input type="checkbox" id="streak-toggle" class="sr-only peer">
+                <div class="w-14 h-8 bg-gray-300 border-3 border-black rounded-full peer peer-checked:bg-neo-green cursor-pointer transition-colors"></div>
+                <div class="absolute left-1 top-1 w-6 h-6 bg-white border-2 border-black rounded-full peer-checked:translate-x-6 transition-transform pointer-events-none"></div>
+            </label>
+            <span id="streak-status" class="text-sm font-bold text-gray-600">OFF</span>
+        </div>
+
         <div class="bg-gray-100 border-4 border-black p-4 md:p-6 mb-8 md:mb-10 text-left">
             <h4 id="players-title" class="text-xl md:text-2xl font-black mb-4 border-b-4 border-black pb-2">Players
                 Waiting (0)</h4>
@@ -61,7 +72,15 @@
         const playerListDiv = document.getElementById("player-list");
         const playersTitle = document.getElementById("players-title");
         const startGameBtn = document.getElementById("start-game-btn");
+        const streakToggle = document.getElementById("streak-toggle");
+        const streakStatus = document.getElementById("streak-status");
 
+        // Handle streak toggle display
+        streakToggle.addEventListener('change', function () {
+            streakStatus.innerText = this.checked ? 'ON' : 'OFF';
+        });
+
+        // Connect to the SocketIO room
         socket.on('connect', function () {
             socket.emit('join_room_event', {
                 session_code: sessionCode,
@@ -70,10 +89,12 @@
             socket.emit('request_players', { session_code: sessionCode });
         });
 
+        // When a player joins, refresh the player list
         socket.on('player_joined', function (data) {
             socket.emit('request_players', { session_code: sessionCode });
         });
 
+        // Update the player list UI
         socket.on('update_players', function (data) {
             const players = data.players;
             playersTitle.innerText = `Players Waiting (${players.length})`;
@@ -97,6 +118,25 @@
                 startGameBtn.disabled = true;
                 startGameBtn.classList.add('opacity-50', 'cursor-not-allowed');
             }
+        });
+
+        // Start Game button click — emit start_game event
+        startGameBtn.addEventListener('click', function () {
+            const streakEnabled = streakToggle.checked;
+            socket.emit('start_game', {
+                session_code: sessionCode,
+                streak_enabled: streakEnabled
+            });
+
+            // Disable button to prevent double-click
+            startGameBtn.disabled = true;
+            startGameBtn.innerText = 'Starting...';
+            startGameBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        });
+
+        // When game has started, redirect host to the game control screen
+        socket.on('game_started', function (data) {
+            window.location.href = `/host/game/${sessionCode}`;
         });
     });
 </script>
