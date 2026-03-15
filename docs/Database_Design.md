@@ -58,6 +58,7 @@ erDiagram
         int session_id FK
         varchar nickname
         int score
+        int streak
         timestamp joined_at
     }
     player_answers {
@@ -133,6 +134,7 @@ Tracks anonymous players who joined a game session.
 - Links a player to a game session.
 - Users join using a non-unique `nickname` instead of an account. 
 - Score is cumulative of all points earned in the session.
+- Tracks consecutive correct answers in the `streak` column for bonus point calculation.
 - Updated in real-time as player answers questions.
 - Cascade delete when session is deleted.
 - No user login is required to generate a participant record.
