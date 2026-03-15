@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_socketio import SocketIO, join_room, leave_room, emit
 import mysql.connector
@@ -11,6 +11,8 @@ from config.config import db_config
 import random
 import string
 import socket
+import time
+import math
 
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -29,6 +31,10 @@ app.secret_key = 'your-secret-key-change-this-in-production'
 
 # Initialize SocketIO
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+# In-memory store for active game state (question start times, streak toggle)
+# Key: session_code, Value: dict with question_start_time, streak_enabled, etc.
+active_games = {}
 
 # Flask-Login setup
 login_manager = LoginManager()
@@ -497,7 +503,9 @@ def add_question(quiz_id):
             option_c = request.form.get('option_c', '').strip() or None
             option_d = request.form.get('option_d', '').strip() or None
             points = int(request.form.get('points', 10))
-            time_limit = int(request.form.get('time_limit', 30))
+            # Default time limits: MC=15s, T/F=10s, Fill-blank=20s
+            default_times = {'multiple_choice': 15, 'true_false': 10, 'fill_blank': 20}
+            time_limit = int(request.form.get('time_limit', default_times.get(question_type, 15)))
 
             if not question_text:
                 flash('Question text is required', 'danger')
@@ -591,7 +599,9 @@ def edit_question(quiz_id, question_id):
             option_c = request.form.get('option_c', '').strip() or None
             option_d = request.form.get('option_d', '').strip() or None
             points = int(request.form.get('points', 10))
-            time_limit = int(request.form.get('time_limit', 30))
+            # Default time limits: MC=15s, T/F=10s, Fill-blank=20s
+            default_times = {'multiple_choice': 15, 'true_false': 10, 'fill_blank': 20}
+            time_limit = int(request.form.get('time_limit', default_times.get(question_type, 15)))
 
             if not question_text or not correct_answer:
                 flash('Question text and correct answer are required', 'danger')
@@ -818,44 +828,418 @@ def join_game():
 
 
 # =============================================
+# Live Game Routes
+# =============================================
+
+@app.route('/host/game/<session_code>')
+@login_required
+def host_game_control(session_code):
+    """Host game control screen — shows questions and controls during live play."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Verify session exists and belongs to this host
+        cursor.execute(
+            "SELECT gs.*, q.title as quiz_title FROM game_sessions gs "
+            "JOIN quizzes q ON gs.quiz_id = q.quiz_id "
+            "WHERE gs.session_code = %s AND gs.host_id = %s",
+            (session_code, current_user.id)
+        )
+        game_session = cursor.fetchone()
+
+        if not game_session:
+            flash('Session not found or you are not the host.', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('dashboard'))
+
+        # Get all questions for this quiz
+        cursor.execute(
+            "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC",
+            (game_session['quiz_id'],)
+        )
+        questions = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        return render_template(
+            'host_game.html',
+            session=game_session,
+            questions=questions,
+            total_questions=len(questions)
+        )
+
+    except Exception as e:
+        flash(f'Error loading game control: {str(e)}', 'danger')
+        return redirect(url_for('dashboard'))
+
+
+@app.route('/play/<session_code>')
+def player_game(session_code):
+    """Player game screen — shows questions and collects answers in real-time."""
+    # Get participant info from Flask session
+    participant_id = session.get('participant_id')
+    nickname = session.get('nickname')
+
+    if not participant_id or not nickname:
+        flash('You need to join a game first.', 'danger')
+        return redirect(url_for('index'))
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Verify the session exists and is active
+        cursor.execute(
+            "SELECT gs.*, q.title as quiz_title FROM game_sessions gs "
+            "JOIN quizzes q ON gs.quiz_id = q.quiz_id "
+            "WHERE gs.session_code = %s AND gs.status = 'active'",
+            (session_code,)
+        )
+        game_session = cursor.fetchone()
+
+        if not game_session:
+            flash('Game session not found or not active.', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('index'))
+
+        cursor.close()
+        conn.close()
+
+        return render_template(
+            'player_game.html',
+            session=game_session,
+            nickname=nickname,
+            participant_id=participant_id
+        )
+
+    except Exception as e:
+        flash(f'Error loading game: {str(e)}', 'danger')
+        return redirect(url_for('index'))
+
+
+# =============================================
 # WebSocket Events
 # =============================================
 
 @socketio.on('join_room_event')
 def handle_join_room_event(data):
+    """Handle a user (host or player) joining a SocketIO room."""
     session_code = data.get('session_code')
     nickname = data.get('nickname')
-    
+
     if session_code:
         join_room(session_code)
         # Broadcast to the room that a player joined
         emit('player_joined', {'nickname': nickname}, room=session_code)
 
+
 @socketio.on('request_players')
 def handle_request_players(data):
+    """Return the current list of players in a session's lobby."""
     session_code = data.get('session_code')
-    
+
     if session_code:
         try:
             conn = get_db_connection()
             cursor = conn.cursor(dictionary=True)
-            
-            # Get session ID and participants
+
             cursor.execute(
-                """SELECT gp.nickname 
+                """SELECT gp.nickname
                    FROM game_participants gp
                    JOIN game_sessions gs ON gp.session_id = gs.session_id
                    WHERE gs.session_code = %s""",
                 (session_code,)
             )
             participants = cursor.fetchall()
-            
+
             cursor.close()
             conn.close()
-            
+
             emit('update_players', {'players': participants})
         except Exception as e:
             emit('error', {'message': str(e)})
+
+
+@socketio.on('start_game')
+def handle_start_game(data):
+    """Host starts the game — transition status to 'active' and notify players."""
+    session_code = data.get('session_code')
+    streak_enabled = data.get('streak_enabled', False)
+
+    if not session_code:
+        return
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Update game session status to active
+        cursor.execute(
+            "UPDATE game_sessions SET status = 'active', started_at = NOW(), current_question = 1 "
+            "WHERE session_code = %s AND status = 'waiting'",
+            (session_code,)
+        )
+        conn.commit()
+
+        if cursor.rowcount == 0:
+            cursor.close()
+            conn.close()
+            emit('error', {'message': 'Session not found or already started.'})
+            return
+
+        # Initialize in-memory game state
+        active_games[session_code] = {
+            'streak_enabled': streak_enabled,
+            'question_start_time': None,
+            'answers_received': 0
+        }
+
+        cursor.close()
+        conn.close()
+
+        # Notify all players in the room that the game has started
+        emit('game_started', {
+            'session_code': session_code,
+            'redirect_url': f'/play/{session_code}'
+        }, room=session_code)
+
+    except Exception as e:
+        emit('error', {'message': str(e)})
+
+
+@socketio.on('host_next_question')
+def handle_next_question(data):
+    """Host advances to the next question — fetch and broadcast it to all players."""
+    session_code = data.get('session_code')
+
+    if not session_code:
+        return
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Get current session state
+        cursor.execute(
+            "SELECT * FROM game_sessions WHERE session_code = %s AND status = 'active'",
+            (session_code,)
+        )
+        game_session = cursor.fetchone()
+
+        if not game_session:
+            cursor.close()
+            conn.close()
+            emit('error', {'message': 'Active session not found.'})
+            return
+
+        current_q_num = game_session['current_question']
+
+        # Fetch the question at the current position
+        cursor.execute(
+            "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC "
+            "LIMIT 1 OFFSET %s",
+            (game_session['quiz_id'], current_q_num - 1)
+        )
+        question = cursor.fetchone()
+
+        if not question:
+            # No more questions — game is over
+            cursor.execute(
+                "UPDATE game_sessions SET status = 'completed', ended_at = NOW() "
+                "WHERE session_code = %s",
+                (session_code,)
+            )
+            conn.commit()
+            cursor.close()
+            conn.close()
+
+            # Clean up in-memory state
+            active_games.pop(session_code, None)
+
+            emit('game_over', {'session_code': session_code}, room=session_code)
+            return
+
+        # Get total question count for progress display
+        cursor.execute(
+            "SELECT COUNT(*) as total FROM questions WHERE quiz_id = %s",
+            (game_session['quiz_id'],)
+        )
+        total_questions = cursor.fetchone()['total']
+
+        # Get participant count for auto-end tracking
+        cursor.execute(
+            "SELECT COUNT(*) as count FROM game_participants WHERE session_id = %s",
+            (game_session['session_id'],)
+        )
+        player_count = cursor.fetchone()['count']
+
+        cursor.close()
+        conn.close()
+
+        # Record start time in memory for scoring
+        if session_code in active_games:
+            active_games[session_code]['question_start_time'] = time.time()
+            active_games[session_code]['answers_received'] = 0
+            active_games[session_code]['player_count'] = player_count
+            active_games[session_code]['current_question_id'] = question['question_id']
+
+        # Build question data to send (WITHOUT the correct answer)
+        question_data = {
+            'question_id': question['question_id'],
+            'question_text': question['question_text'],
+            'question_type': question['question_type'],
+            'option_a': question['option_a'],
+            'option_b': question['option_b'],
+            'option_c': question['option_c'],
+            'option_d': question['option_d'],
+            'points': question['points'],
+            'time_limit': question['time_limit'],
+            'question_number': current_q_num,
+            'total_questions': total_questions
+        }
+
+        # Broadcast question to all players and the host
+        emit('new_question', question_data, room=session_code)
+
+    except Exception as e:
+        emit('error', {'message': str(e)})
+
+
+@socketio.on('submit_answer')
+def handle_submit_answer(data):
+    """Player submits an answer. Validate, score, and record in the database."""
+    session_code = data.get('session_code')
+    participant_id = data.get('participant_id')
+    question_id = data.get('question_id')
+    answer_given = data.get('answer')
+
+    if not session_code or not participant_id or not question_id:
+        return
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Fetch the correct answer and points for this question
+        cursor.execute(
+            "SELECT correct_answer, points, time_limit FROM questions WHERE question_id = %s",
+            (question_id,)
+        )
+        question = cursor.fetchone()
+
+        if not question:
+            cursor.close()
+            conn.close()
+            return
+
+        # Determine correctness (case-insensitive comparison)
+        is_correct = False
+        if answer_given:
+            is_correct = answer_given.strip().lower() == question['correct_answer'].strip().lower()
+
+        # Calculate time-based proportional score
+        # Formula: floor((1 - ((response_time / time_limit) / 2)) * points)
+        points_earned = 0
+        game_state = active_games.get(session_code, {})
+        question_start = game_state.get('question_start_time', time.time())
+        response_time = time.time() - question_start
+        time_limit = question['time_limit']
+
+        if is_correct:
+            time_ratio = min(response_time / time_limit, 1.0)  # Cap at 1.0
+            points_earned = math.floor((1 - (time_ratio / 2)) * question['points'])
+            points_earned = max(points_earned, 1)  # Minimum 1 point if correct
+
+        # Handle streak logic
+        streak_bonus = 0
+        streak_enabled = game_state.get('streak_enabled', False)
+
+        # Get current streak from database
+        cursor.execute(
+            "SELECT score, streak FROM game_participants WHERE participant_id = %s",
+            (participant_id,)
+        )
+        participant = cursor.fetchone()
+
+        if not participant:
+            cursor.close()
+            conn.close()
+            return
+
+        current_streak = participant['streak']
+
+        if is_correct:
+            new_streak = current_streak + 1
+            if streak_enabled:
+                # Streak bonus: +1 per streak, capped at +5
+                streak_bonus = min(new_streak, 5)
+        else:
+            new_streak = 0  # Reset streak on incorrect answer
+
+        total_points = points_earned + streak_bonus
+
+        # Record the answer in player_answers
+        cursor.execute(
+            "INSERT INTO player_answers (participant_id, question_id, answer_given, is_correct, points_earned) "
+            "VALUES (%s, %s, %s, %s, %s)",
+            (participant_id, question_id, answer_given, is_correct, total_points)
+        )
+
+        # Update participant score and streak
+        cursor.execute(
+            "UPDATE game_participants SET score = score + %s, streak = %s WHERE participant_id = %s",
+            (total_points, new_streak, participant_id)
+        )
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+
+        # Send feedback to the player who submitted
+        emit('answer_result', {
+            'is_correct': is_correct,
+            'points_earned': total_points,
+            'streak': new_streak,
+            'streak_bonus': streak_bonus,
+            'correct_answer': question['correct_answer']
+        })
+
+        # Notify host that a player answered
+        emit('player_answered', {
+            'participant_id': participant_id,
+            'is_correct': is_correct
+        }, room=session_code)
+
+        # Auto-end round check: if all players have answered
+        if session_code in active_games:
+            active_games[session_code]['answers_received'] += 1
+            answered = active_games[session_code]['answers_received']
+            total_players = active_games[session_code].get('player_count', 0)
+
+            if answered >= total_players:
+                # Advance the current_question counter in the database
+                try:
+                    conn2 = get_db_connection()
+                    cursor2 = conn2.cursor()
+                    cursor2.execute(
+                        "UPDATE game_sessions SET current_question = current_question + 1 "
+                        "WHERE session_code = %s",
+                        (session_code,)
+                    )
+                    conn2.commit()
+                    cursor2.close()
+                    conn2.close()
+                except Exception:
+                    pass
+
+                emit('round_ended', {'all_answered': True}, room=session_code)
+
+    except Exception as e:
+        emit('error', {'message': str(e)})
 
 # =============================================
 # Error Handlers
@@ -904,4 +1288,4 @@ def show_tables():
 
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True, allow_unsafe_werkzeug=True)
