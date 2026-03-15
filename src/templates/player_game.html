@@ -1,0 +1,449 @@
+{% extends "base.html" %}
+
+{% block title %}Playing: {{ session.quiz_title }} - Quiz Platform{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto w-full flex flex-col flex-1 pb-1 sm:pb-4 min-h-0" style="height: calc(100dvh - 160px);"
+    id="player-app">
+    <!-- Header Area -->
+    <div
+        class="bg-neo-green neo-card p-2 sm:p-3 md:p-6 mb-2 sm:mb-4 shrink-0 flex flex-col md:flex-row justify-between items-start md:items-center relative gap-2 md:gap-0">
+        <div class="flex flex-col w-full pr-6 md:pr-4 min-w-0">
+            <h1 class="text-xl sm:text-2xl md:text-3xl font-black break-words" title="{{ session.quiz_title }}">
+                {{ session.quiz_title }}
+            </h1>
+            <span
+                class="font-bold text-gray-700 bg-white border-2 border-black px-1.5 py-0.5 mt-1 sm:mt-2 self-start shadow-neo-sm text-xs sm:text-base">
+                🎮 {{ nickname }}
+            </span>
+        </div>
+
+        <div class="flex gap-2 sm:gap-4 font-black text-base sm:text-xl shrink-0 mt-2 md:mt-0">
+            <div id="score-display"
+                class="bg-neo-yellow border-4 border-black px-3 py-1 sm:px-4 sm:py-2 shadow-neo-sm transform rotate-2 whitespace-nowrap transition-all">
+                Score: 0
+            </div>
+            <div id="streak-display"
+                class="bg-neo-orange border-4 border-black px-3 py-1 sm:px-4 sm:py-2 shadow-neo-sm transform -rotate-1 whitespace-nowrap hidden">
+                🔥 0
+            </div>
+        </div>
+    </div>
+
+    <!-- Waiting for Question View -->
+    <div id="waiting-view" class="flex flex-col flex-1 items-center justify-center text-center">
+        <div class="bg-white neo-card p-8 md:p-12 max-w-2xl w-full">
+            <h2 class="text-3xl md:text-5xl font-black mb-4 animate-pulse">Get Ready!</h2>
+            <p class="text-xl font-bold text-gray-500">Waiting for the host to show the first question...</p>
+        </div>
+    </div>
+
+    <!-- Active Question View (hidden initially) -->
+    <div id="question-view" class="hidden flex-col flex-1 min-h-0">
+        <div class="bg-white neo-card p-3 sm:p-4 md:p-8 flex flex-col relative flex-1 min-h-0">
+            <!-- Timer Bar -->
+            <div class="absolute top-0 left-0 w-full h-2 sm:h-3 bg-gray-200 border-b-4 border-black border-dashed">
+                <div id="timer-bar" class="h-full bg-neo-red w-full transition-all ease-linear"></div>
+            </div>
+
+            <div
+                class="mt-3 sm:mt-4 flex justify-between items-center mb-3 sm:mb-6 font-bold text-gray-500 text-sm sm:text-lg shrink-0">
+                <span id="question-counter">Question 1/X</span>
+                <span id="timer-text"
+                    class="text-black bg-neo-pink px-2 py-0.5 sm:px-3 sm:py-1 border-2 border-black shadow-neo-sm">
+                    <span id="time-left">0</span>s
+                </span>
+            </div>
+
+            <div class="flex flex-col flex-1 justify-center items-center w-full min-h-0 max-h-full">
+                <div class="w-full flex-1 flex items-center justify-center min-h-0 overflow-y-auto mb-3 sm:mb-6">
+                    <h2 id="question-text"
+                        class="text-xl sm:text-3xl md:text-5xl font-black w-full text-center break-words pb-1">
+                        Question Text</h2>
+                </div>
+
+                <!-- Options Area -->
+                <div id="options-area" class="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 w-full shrink-0">
+                    <!-- Buttons injected via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback Container (shown after answering) -->
+        <div id="feedback-container" class="mt-4 text-center hidden shrink-0">
+            <div id="feedback-card" class="neo-card p-4 md:p-6 max-w-lg mx-auto w-full">
+                <div id="feedback-icon" class="text-5xl md:text-6xl mb-2"></div>
+                <div id="feedback-text" class="text-xl md:text-2xl font-black mb-1"></div>
+                <div id="feedback-points" class="text-lg font-bold text-gray-600"></div>
+                <div id="feedback-streak" class="text-sm font-bold text-gray-500 mt-1 hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Waiting Between Rounds View -->
+    <div id="between-rounds-view" class="hidden flex-col flex-1 items-center justify-center text-center">
+        <div class="bg-neo-blue neo-card p-8 md:p-12 max-w-2xl w-full">
+            <h2 class="text-3xl md:text-4xl font-black mb-4 animate-pulse">Waiting for Next Question...</h2>
+            <p class="text-lg font-bold text-gray-600">The host will show the next question shortly.</p>
+        </div>
+    </div>
+
+    <!-- Game Over View -->
+    <div id="game-over-view" class="hidden flex-col flex-1 mt-4 text-center justify-center">
+        <div class="bg-neo-pink neo-card p-8 md:p-12 max-w-2xl mx-auto w-full">
+            <h2 class="text-5xl md:text-6xl font-black mb-4 tracking-tighter title-skew">Game Over!</h2>
+            <div class="text-2xl font-bold mb-8 text-gray-800">Your Final Score</div>
+
+            <div class="flex flex-col items-center justify-center w-full">
+                <div
+                    class="text-6xl md:text-8xl font-black mb-8 bg-white border-8 border-black p-6 md:p-8 shadow-neo inline-block transform -rotate-2 text-neo-blue title-shadow">
+                    <span id="final-score">0</span>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="{{ url_for('index') }}"
+                    class="neo-btn bg-black text-white px-8 py-4 text-xl flex-1 text-center">Back to Home</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .title-skew {
+        transform: skewX(-5deg);
+        display: inline-block;
+    }
+
+    .title-shadow {
+        text-shadow: 4px 4px 0px #000;
+    }
+
+    .option-btn {
+        transition: all 0.1s;
+    }
+
+    .option-btn:active,
+    .option-clicked {
+        transform: translate(4px, 4px);
+        box-shadow: none !important;
+    }
+
+    .correct-answer {
+        background-color: #A0E8AF !important;
+        border-width: 6px;
+        animation: pulse 0.5s ease;
+    }
+
+    .wrong-answer {
+        background-color: #FF8A8A !important;
+        opacity: 0.8;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const socket = io();
+        const sessionCode = "{{ session.session_code }}";
+        const participantId = {{ participant_id }};
+        const nickname = "{{ nickname }}";
+
+        // Game state
+        let totalScore = 0;
+        let currentStreak = 0;
+        let currentQuestionId = null;
+        let hasAnswered = false;
+        let timerInterval = null;
+        let timeLeft = 0;
+        let timedOut = false;
+
+        // DOM elements
+        const waitingView = document.getElementById("waiting-view");
+        const questionView = document.getElementById("question-view");
+        const betweenRoundsView = document.getElementById("between-rounds-view");
+        const gameOverView = document.getElementById("game-over-view");
+        const questionText = document.getElementById("question-text");
+        const optionsArea = document.getElementById("options-area");
+        const qCounter = document.getElementById("question-counter");
+        const scoreDisplay = document.getElementById("score-display");
+        const streakDisplay = document.getElementById("streak-display");
+        const timeLeftEl = document.getElementById("time-left");
+        const timerBar = document.getElementById("timer-bar");
+        const feedbackContainer = document.getElementById("feedback-container");
+        const feedbackCard = document.getElementById("feedback-card");
+        const feedbackIcon = document.getElementById("feedback-icon");
+        const feedbackText = document.getElementById("feedback-text");
+        const feedbackPoints = document.getElementById("feedback-points");
+        const feedbackStreak = document.getElementById("feedback-streak");
+
+        // Connect and join room
+        socket.on('connect', function () {
+            socket.emit('join_room_event', {
+                session_code: sessionCode,
+                nickname: nickname
+            });
+        });
+
+        // Receive a new question from the host
+        socket.on('new_question', function (data) {
+            hasAnswered = false;
+            timedOut = false;
+            currentQuestionId = data.question_id;
+
+            // Switch to question view
+            hideAllViews();
+            questionView.classList.remove('hidden');
+            questionView.classList.add('flex');
+            feedbackContainer.classList.add('hidden');
+
+            // Update question info
+            qCounter.innerText = `Question ${data.question_number}/${data.total_questions}`;
+            questionText.innerText = data.question_text;
+
+            // Build answer options
+            optionsArea.innerHTML = '';
+
+            if (data.question_type === 'fill_blank') {
+                optionsArea.innerHTML = `
+                    <div class="col-span-2 md:col-span-2" id="fill-blank-container">
+                        <input type="text" id="fill-blank-input" class="neo-input bg-white w-full text-base sm:text-2xl py-2 sm:py-4" placeholder="Type answer..." autocomplete="off">
+                        <button id="submit-answer-btn" class="neo-btn bg-black text-white mt-4 text-base sm:text-xl px-4 sm:px-8 py-2 sm:py-3 w-full">Submit</button>
+                    </div>
+                `;
+                document.getElementById('submit-answer-btn').addEventListener('click', () => {
+                    const val = document.getElementById('fill-blank-input').value.trim();
+                    if (val) submitAnswer(val);
+                });
+                document.getElementById('fill-blank-input').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        const val = e.target.value.trim();
+                        if (val) submitAnswer(val);
+                    }
+                });
+                setTimeout(() => document.getElementById('fill-blank-input').focus(), 100);
+            } else {
+                const colors = ['bg-neo-blue', 'bg-neo-pink', 'bg-neo-yellow', 'bg-neo-green'];
+                const keys = ['A', 'B', 'C', 'D'];
+
+                keys.forEach((key, index) => {
+                    const optionValue = data[`option_${key.toLowerCase()}`];
+                    if (optionValue) {
+                        const btn = document.createElement('button');
+                        btn.className = `option-btn neo-card ${colors[index]} p-1 sm:p-4 md:p-6 text-xs sm:text-xl md:text-2xl font-bold flex flex-col sm:flex-row items-center sm:items-center text-center sm:text-left min-h-0 sm:min-h-[60px] md:min-h-[80px] hover:brightness-95 w-full leading-tight shrink-0 gap-1 sm:gap-0`;
+                        const prefix = data.question_type === 'true_false' ? '' : `<span class="sm:mr-3 bg-white border-2 border-black rounded px-1 py-0.5 sm:px-2 sm:py-1 shadow-neo-sm shrink-0 flex items-center justify-center">${key}</span>`;
+                        btn.innerHTML = `${prefix}<span class="flex-1 break-words min-w-0">${optionValue}</span>`;
+                        btn.dataset.key = key;
+                        btn.addEventListener('click', () => submitAnswer(key));
+                        optionsArea.appendChild(btn);
+                    }
+                });
+            }
+
+            // Start countdown timer
+            startTimer(data.time_limit);
+        });
+
+        // Submit answer to server via SocketIO
+        function submitAnswer(answer) {
+            if (hasAnswered) return;
+            hasAnswered = true;
+            clearInterval(timerInterval);
+
+            // Disable all option buttons
+            const btns = document.querySelectorAll('.option-btn');
+            btns.forEach(btn => {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+                // Highlight the selected answer
+                if (btn.dataset.key === answer) {
+                    btn.classList.remove('opacity-50');
+                    btn.classList.add('option-clicked', 'border-4', 'border-blue-500');
+                }
+            });
+
+            // Disable fill-blank input if applicable
+            const fillInput = document.getElementById('fill-blank-input');
+            if (fillInput) {
+                fillInput.disabled = true;
+                const submitBtn = document.getElementById('submit-answer-btn');
+                if (submitBtn) submitBtn.disabled = true;
+            }
+
+            // Send the answer to the server
+            socket.emit('submit_answer', {
+                session_code: sessionCode,
+                participant_id: participantId,
+                question_id: currentQuestionId,
+                answer: answer
+            });
+        }
+
+        // Receive answer result feedback
+        socket.on('answer_result', function (data) {
+            // Show feedback
+            feedbackContainer.classList.remove('hidden');
+
+            if (data.is_correct) {
+                feedbackCard.className = 'neo-card p-4 md:p-6 max-w-lg mx-auto w-full bg-neo-green';
+                feedbackIcon.innerText = '✅';
+                feedbackText.innerText = 'Correct!';
+                feedbackPoints.innerText = `+${data.points_earned} points`;
+
+                // Highlight correct answer in options
+                showCorrectAnswer(data.correct_answer);
+            } else {
+                feedbackCard.className = 'neo-card p-4 md:p-6 max-w-lg mx-auto w-full bg-neo-red';
+                feedbackIcon.innerText = timedOut ? '⏰' : '❌';
+                feedbackText.innerText = timedOut ? "Time's Up!" : 'Incorrect!';
+                feedbackPoints.innerText = '0 points';
+
+                // Show which was correct
+                showCorrectAnswer(data.correct_answer);
+            }
+
+            // Update streak display
+            if (data.streak > 0 && data.streak_bonus > 0) {
+                feedbackStreak.classList.remove('hidden');
+                feedbackStreak.innerText = `🔥 Streak: ${data.streak} (+${data.streak_bonus} bonus)`;
+            } else if (data.streak > 0) {
+                feedbackStreak.classList.remove('hidden');
+                feedbackStreak.innerText = `🔥 Streak: ${data.streak}`;
+            } else {
+                feedbackStreak.classList.add('hidden');
+            }
+
+            // Update score display
+            totalScore += data.points_earned;
+            currentStreak = data.streak;
+            scoreDisplay.innerText = `Score: ${totalScore}`;
+
+            // Bounce animation on score
+            if (data.points_earned > 0) {
+                scoreDisplay.classList.add('scale-125', 'bg-green-300');
+                setTimeout(() => {
+                    scoreDisplay.classList.remove('scale-125', 'bg-green-300');
+                }, 300);
+            }
+
+            // Update streak badge
+            if (currentStreak > 0) {
+                streakDisplay.classList.remove('hidden');
+                streakDisplay.innerText = `🔥 ${currentStreak}`;
+            } else {
+                streakDisplay.classList.add('hidden');
+            }
+        });
+
+        // Show the correct answer visually
+        function showCorrectAnswer(correctAnswer) {
+            const btns = document.querySelectorAll('.option-btn');
+            btns.forEach(btn => {
+                if (btn.dataset.key === correctAnswer) {
+                    btn.classList.remove('opacity-50');
+                    btn.classList.add('correct-answer');
+                }
+            });
+
+            // For fill-in-the-blank
+            const fillInput = document.getElementById('fill-blank-input');
+            if (fillInput) {
+                const container = document.getElementById('fill-blank-container');
+                const corr = document.createElement('div');
+                corr.className = 'mt-4 text-lg font-bold bg-white border-4 border-black p-3 text-center text-green-700 shadow-neo';
+                corr.innerHTML = `Correct answer: ${correctAnswer}`;
+                container.appendChild(corr);
+            }
+        }
+
+        // Round ended — transition to waiting between rounds
+        socket.on('round_ended', function (data) {
+            clearInterval(timerInterval);
+            // Wait a moment to show feedback, then switch to waiting view
+            setTimeout(() => {
+                hideAllViews();
+                betweenRoundsView.classList.remove('hidden');
+                betweenRoundsView.classList.add('flex');
+            }, 2000);
+        });
+
+        // Game over
+        socket.on('game_over', function (data) {
+            clearInterval(timerInterval);
+            hideAllViews();
+            gameOverView.classList.remove('hidden');
+            gameOverView.classList.add('flex');
+
+            // Animate final score
+            const finalScoreEl = document.getElementById('final-score');
+            let currentDisplay = 0;
+            const duration = 1500;
+            const steps = 30;
+            const increment = totalScore / steps;
+            const stepTime = duration / steps;
+
+            const counter = setInterval(() => {
+                currentDisplay += increment;
+                if (currentDisplay >= totalScore) {
+                    finalScoreEl.innerText = totalScore;
+                    clearInterval(counter);
+                } else {
+                    finalScoreEl.innerText = Math.floor(currentDisplay);
+                }
+            }, stepTime);
+        });
+
+        // Timer function
+        function startTimer(seconds) {
+            clearInterval(timerInterval);
+            timeLeft = seconds;
+            timeLeftEl.innerText = timeLeft;
+            timerBar.style.width = '100%';
+            timerBar.style.transitionDuration = '1s';
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timeLeftEl.innerText = timeLeft;
+                const pct = (timeLeft / seconds) * 100;
+                timerBar.style.width = `${pct}%`;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    // Auto-submit null answer on timeout
+                    timedOut = true;
+                    submitAnswer(null);
+                }
+            }, 1000);
+        }
+
+        // Utility: hide all views
+        function hideAllViews() {
+            waitingView.classList.add('hidden');
+            waitingView.classList.remove('flex');
+            questionView.classList.add('hidden');
+            questionView.classList.remove('flex');
+            betweenRoundsView.classList.add('hidden');
+            betweenRoundsView.classList.remove('flex');
+            gameOverView.classList.add('hidden');
+            gameOverView.classList.remove('flex');
+        }
+
+        // Handle session cancellation
+        socket.on('session_cancelled', function () {
+            alert('The host has cancelled this session.');
+            window.location.href = "{{ url_for('index') }}";
+        });
+
+        // Handle disconnect
+        socket.on('disconnect', function () {
+            console.log('Disconnected from server');
+        });
+    });
+</script>
+{% endblock %}
