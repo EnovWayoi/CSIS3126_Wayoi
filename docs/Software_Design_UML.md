@@ -119,6 +119,7 @@ sequenceDiagram
         Player->>System: Submit Answer (Includes response speed)
         System->>DB: Validate Answer & Save Player Response
         System->>System: Calculate Proportional Score (10pts max)
+        System->>System: Calculate Streak Bonus (if applicable)
         System-->>Player: Acknowledge Answer Received
         
         Note over System: Timer expires OR all players have answered
