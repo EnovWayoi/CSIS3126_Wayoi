@@ -98,7 +98,7 @@
                         <div class="w-full">
                             <label for="time_limit" class="block font-bold mb-2">Time Limit (secs)</label>
                             <input type="number" class="neo-input bg-gray-50" id="time_limit" name="time_limit"
-                                value="30" min="5" max="300">
+                                value="15" min="5" max="300">
                         </div>
                     </div>
 
@@ -122,9 +122,13 @@
         const correctMC = document.getElementById('correct_answer_mc');
         const correctTF = document.getElementById('correct_answer_tf');
         const correctFB = document.getElementById('correct_answer_fb');
+        const timeLimitInput = document.getElementById('time_limit');
 
         const selectTF = document.getElementById('correct_answer_tf_select');
         const inputFB = document.getElementById('correct_answer_fb_input');
+
+        // Default time limits per question type
+        const defaultTimes = { 'multiple_choice': 15, 'true_false': 10, 'fill_blank': 20 };
 
         // Disable all hidden inputs so they don't submit
         document.getElementById('correct_answer_select').disabled = true;
@@ -135,6 +139,9 @@
         document.getElementById('correct_answer_select').name = 'correct_answer_select';
         if (selectTF) selectTF.name = 'correct_answer_tf';
         if (inputFB) inputFB.name = 'correct_answer_fb';
+
+        // Update default time limit for the selected question type
+        timeLimitInput.value = defaultTimes[type] || 15;
 
         if (type === 'multiple_choice') {
             mcOptions.style.display = 'block';
