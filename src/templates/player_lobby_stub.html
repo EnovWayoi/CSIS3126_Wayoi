@@ -64,10 +64,15 @@
             }, 2000);
         });
 
-        // Listen for game_start event (coming in week 10, placeholder)
-        socket.on('game_start', function () {
+        // Listen for game_start event — redirect to player game screen
+        socket.on('game_started', function (data) {
             statusText.innerText = "Game is starting!";
-            // Future: window.location.href = `/play/${sessionCode}`;
+            statusText.classList.remove("text-neo-blue", "text-neo-pink");
+            statusText.classList.add("text-neo-green");
+            // Redirect to the live game page after a brief delay
+            setTimeout(() => {
+                window.location.href = data.redirect_url || `/play/${sessionCode}`;
+            }, 1000);
         });
     });
 </script>
