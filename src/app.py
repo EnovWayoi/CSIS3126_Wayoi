@@ -881,9 +881,8 @@ def player_game(session_code):
     """Player game screen — shows questions and collects answers in real-time."""
     # Get participant info from Flask session
     participant_id = session.get('participant_id')
-    nickname = session.get('nickname')
 
-    if not participant_id or not nickname:
+    if not participant_id:
         flash('You need to join a game first.', 'danger')
         return redirect(url_for('index'))
 
@@ -906,6 +905,24 @@ def player_game(session_code):
             conn.close()
             return redirect(url_for('index'))
 
+        # Always fetch the nickname from the DB using participant_id.
+        # This avoids a bug where multiple players in the same browser
+        # share the Flask session cookie (session['nickname'] gets
+        # overwritten by whoever joined last).
+        cursor.execute(
+            "SELECT nickname FROM game_participants WHERE participant_id = %s",
+            (participant_id,)
+        )
+        participant = cursor.fetchone()
+
+        if not participant:
+            flash('Participant record not found. Please rejoin the game.', 'danger')
+            cursor.close()
+            conn.close()
+            return redirect(url_for('index'))
+
+        nickname = participant['nickname']
+
         cursor.close()
         conn.close()
 
@@ -921,9 +938,14 @@ def player_game(session_code):
         return redirect(url_for('index'))
 
 
+
 # =============================================
 # WebSocket Events
 # =============================================
+
+# Track which socket SID belongs to which session/nickname (for disconnect cleanup)
+connected_players = {}  # { sid: {'session_code': ..., 'nickname': ...} }
+
 
 @socketio.on('join_room_event')
 def handle_join_room_event(data):
@@ -933,8 +955,55 @@ def handle_join_room_event(data):
 
     if session_code:
         join_room(session_code)
+        # Track this connection for disconnect cleanup
+        connected_players[request.sid] = {
+            'session_code': session_code,
+            'nickname': nickname
+        }
         # Broadcast to the room that a player joined
         emit('player_joined', {'nickname': nickname}, room=session_code)
+
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """When a socket disconnects, remove the player from the lobby if the game hasn't started yet."""
+    info = connected_players.pop(request.sid, None)
+    if not info:
+        return
+
+    session_code = info.get('session_code')
+    nickname = info.get('nickname')
+
+    # Do not remove the HOST or players mid-game
+    if not session_code or nickname == 'HOST':
+        return
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Only remove the participant if the game is still in 'waiting' status
+        cursor.execute(
+            "SELECT gs.session_id FROM game_sessions gs "
+            "WHERE gs.session_code = %s AND gs.status = 'waiting'",
+            (session_code,)
+        )
+        game_session = cursor.fetchone()
+
+        if game_session:
+            cursor.execute(
+                "DELETE FROM game_participants "
+                "WHERE session_id = %s AND nickname = %s",
+                (game_session['session_id'], nickname)
+            )
+            conn.commit()
+            # Tell the host to refresh the player list
+            emit('player_joined', {'nickname': None}, room=session_code)
+
+        cursor.close()
+        conn.close()
+    except Exception:
+        pass
 
 
 @socketio.on('request_players')
@@ -1081,11 +1150,13 @@ def handle_next_question(data):
         conn.close()
 
         # Record start time in memory for scoring
+        # Add 3 seconds to offset the intro animation shown on the frontend
         if session_code in active_games:
-            active_games[session_code]['question_start_time'] = time.time()
+            active_games[session_code]['question_start_time'] = time.time() + 3
             active_games[session_code]['answers_received'] = 0
             active_games[session_code]['player_count'] = player_count
             active_games[session_code]['current_question_id'] = question['question_id']
+            active_games[session_code]['current_correct_answer'] = question['correct_answer']
 
         # Build question data to send (WITHOUT the correct answer)
         question_data = {
@@ -1236,10 +1307,50 @@ def handle_submit_answer(data):
                 except Exception:
                     pass
 
-                emit('round_ended', {'all_answered': True}, room=session_code)
+                # Include the correct answer so players can see the reveal
+                correct_ans = active_games[session_code].get('current_correct_answer', '')
+                emit('round_ended', {
+                    'all_answered': True,
+                    'correct_answer': correct_ans
+                }, room=session_code)
 
     except Exception as e:
         emit('error', {'message': str(e)})
+
+@socketio.on('force_end_round')
+def handle_force_end_round(data):
+    """Host forces the round to end when the timer expires, preventing the game from getting stuck."""
+    session_code = data.get('session_code')
+    if not session_code or session_code not in active_games:
+        return
+
+    answers_received = active_games[session_code].get('answers_received', 0)
+
+    # Only advance current_question if nobody answered this round.
+    # If at least one player answered, submit_answer already incremented it
+    # when the last answer came in, so we must not do it again.
+    if answers_received == 0:
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE game_sessions SET current_question = current_question + 1 "
+                "WHERE session_code = %s",
+                (session_code,)
+            )
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception:
+            pass
+
+    # Include the correct answer so players can see the reveal
+    correct_ans = active_games[session_code].get('current_correct_answer', '')
+    emit('round_ended', {
+        'all_answered': True,
+        'correct_answer': correct_ans
+    }, room=session_code)
+
 
 # =============================================
 # Error Handlers

@@ -39,6 +39,18 @@
         </div>
     </div>
 
+    <!-- Question Intro View (shown briefly before the question) -->
+    <div id="intro-view" class="hidden flex-col flex-1 items-center justify-center text-center">
+        <div class="bg-white neo-card p-8 md:p-12 max-w-2xl w-full intro-pop">
+            <!-- Question type badge -->
+            <div id="intro-type-badge"
+                class="inline-block text-lg sm:text-xl font-black px-4 py-2 border-4 border-black shadow-neo-sm mb-6">
+            </div>
+            <!-- Question text preview -->
+            <h2 id="intro-question-text" class="text-2xl sm:text-4xl md:text-5xl font-black break-words"></h2>
+        </div>
+    </div>
+
     <!-- Active Question View (hidden initially) -->
     <div id="question-view" class="hidden flex-col flex-1 min-h-0">
         <div class="bg-white neo-card p-3 sm:p-4 md:p-8 flex flex-col relative flex-1 min-h-0">
@@ -97,6 +109,28 @@
         transform: skewX(-5deg);
         display: inline-block;
     }
+
+    /* Pop-out animation for the question intro screen */
+    @keyframes introPopIn {
+        0% { transform: scale(0.3); opacity: 0; }
+        60% { transform: scale(1.08); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    .intro-pop {
+        animation: introPopIn 0.5s ease-out forwards;
+    }
+
+    /* Correct answer highlight used on round end */
+    .correct-answer-host {
+        background-color: #A0E8AF !important;
+        border-width: 6px;
+        animation: pulseHost 0.5s ease;
+    }
+    @keyframes pulseHost {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
 </style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
@@ -107,6 +141,7 @@
 
         // DOM elements
         const waitingView = document.getElementById("waiting-view");
+        const introView = document.getElementById("intro-view");
         const questionView = document.getElementById("question-view");
         const gameOverView = document.getElementById("game-over-view");
         const showFirstBtn = document.getElementById("show-first-question-btn");
@@ -118,11 +153,34 @@
         const timeLeftEl = document.getElementById("time-left");
         const timerBar = document.getElementById("timer-bar");
         const answerCountDisplay = document.getElementById("answer-count-display");
+        const introTypeBadge = document.getElementById("intro-type-badge");
+        const introQuestionText = document.getElementById("intro-question-text");
 
         let timerInterval = null;
         let answersReceived = 0;
         let totalPlayers = 0;
         let currentCorrectAnswer = null;
+        let introTimeout = null;
+        let roundOver = false; // Prevents force_end_round from firing twice
+
+        // Map question_type codes to friendly labels and colors
+        const typeLabels = {
+            'multiple_choice': { label: '📝 Multiple Choice', color: 'bg-neo-blue' },
+            'true_false':      { label: '✅ True or False', color: 'bg-neo-green' },
+            'fill_blank':      { label: '✏️ Fill in the Blank', color: 'bg-neo-yellow' }
+        };
+
+        // Utility: hide all main views
+        function hideAllViews() {
+            waitingView.classList.add('hidden');
+            waitingView.classList.remove('flex');
+            introView.classList.add('hidden');
+            introView.classList.remove('flex');
+            questionView.classList.add('hidden');
+            questionView.classList.remove('flex');
+            gameOverView.classList.add('hidden');
+            gameOverView.classList.remove('flex');
+        }
 
         // Join the SocketIO room as HOST
         socket.on('connect', function () {
@@ -150,52 +208,76 @@
             // Reset state
             answersReceived = 0;
             currentCorrectAnswer = null;
+            roundOver = false;
+            clearTimeout(introTimeout);
 
-            // Switch to question view
-            waitingView.classList.add('hidden');
-            gameOverView.classList.add('hidden');
-            gameOverView.classList.remove('flex');
-            questionView.classList.remove('hidden');
-            questionView.classList.add('flex');
+            // --- STEP 1: Show Intro View for 3 seconds ---
+            hideAllViews();
             nextQuestionContainer.classList.add('hidden');
 
-            // Update question counter
+            // Set the question type badge label and color
+            const typeInfo = typeLabels[data.question_type] || { label: '❓ Question', color: 'bg-white' };
+            introTypeBadge.innerText = typeInfo.label;
+            // Reset classes, then apply the right color
+            introTypeBadge.className = `inline-block text-lg sm:text-xl font-black px-4 py-2 border-4 border-black shadow-neo-sm mb-6 ${typeInfo.color}`;
+
+            // Set the question text on the intro card
+            introQuestionText.innerText = data.question_text;
+
+            // Re-trigger the CSS animation by cloning the card briefly
+            const introCard = introView.querySelector('.intro-pop');
+            introCard.style.animation = 'none';
+            // Force reflow so the animation restarts
+            void introCard.offsetWidth;
+            introCard.style.animation = '';
+
+            // Show the intro view
+            introView.classList.remove('hidden');
+            introView.classList.add('flex');
+
+            // Update question counter already
             qCounter.innerText = `Question ${data.question_number}/${data.total_questions}`;
+            answerCountDisplay.innerText = `Answers: 0`;
 
-            // Update question text
-            questionText.innerText = data.question_text;
+            // --- STEP 2: After 3 seconds, transition to full question view ---
+            introTimeout = setTimeout(() => {
+                // Hide intro, show question
+                introView.classList.add('hidden');
+                introView.classList.remove('flex');
+                questionView.classList.remove('hidden');
+                questionView.classList.add('flex');
 
-            // Update answer count display
-            // We need to know how many players there are from the server event
-            answerCountDisplay.innerText = `Answers: 0/?`;
+                // Update question text in the main view
+                questionText.innerText = data.question_text;
 
-            // Build option display (host sees all options, correct will be highlighted on round end)
-            optionsArea.innerHTML = '';
-            const colors = ['bg-neo-blue', 'bg-neo-pink', 'bg-neo-yellow', 'bg-neo-green'];
-            const keys = ['A', 'B', 'C', 'D'];
+                // Build option display
+                optionsArea.innerHTML = '';
+                const colors = ['bg-neo-blue', 'bg-neo-pink', 'bg-neo-yellow', 'bg-neo-green'];
+                const keys = ['A', 'B', 'C', 'D'];
 
-            if (data.question_type === 'fill_blank') {
-                optionsArea.innerHTML = `
-                    <div class="col-span-2 bg-white border-4 border-black p-6 text-center shadow-neo">
-                        <span class="text-xl md:text-2xl font-bold text-gray-500 italic">Fill in the Blank — Players are typing...</span>
-                    </div>
-                `;
-            } else {
-                keys.forEach((key, index) => {
-                    const optionValue = data[`option_${key.toLowerCase()}`];
-                    if (optionValue) {
-                        const div = document.createElement('div');
-                        div.className = `${colors[index]} border-4 border-black p-3 sm:p-4 md:p-6 text-sm sm:text-xl md:text-2xl font-bold flex items-center text-left min-h-[50px] sm:min-h-[60px] md:min-h-[80px] shadow-neo-sm`;
-                        div.dataset.key = key;
-                        const prefix = data.question_type === 'true_false' ? '' : `<span class="mr-3 bg-white border-2 border-black rounded px-2 py-1 shadow-neo-sm shrink-0">${key}</span>`;
-                        div.innerHTML = `${prefix}<span class="flex-1 break-words min-w-0">${optionValue}</span>`;
-                        optionsArea.appendChild(div);
-                    }
-                });
-            }
+                if (data.question_type === 'fill_blank') {
+                    optionsArea.innerHTML = `
+                        <div class="col-span-2 bg-white border-4 border-black p-6 text-center shadow-neo">
+                            <span class="text-xl md:text-2xl font-bold text-gray-500 italic">Fill in the Blank — Players are typing...</span>
+                        </div>
+                    `;
+                } else {
+                    keys.forEach((key, index) => {
+                        const optionValue = data[`option_${key.toLowerCase()}`];
+                        if (optionValue) {
+                            const div = document.createElement('div');
+                            div.className = `${colors[index]} border-4 border-black p-3 sm:p-4 md:p-6 text-sm sm:text-xl md:text-2xl font-bold flex items-center text-left min-h-[50px] sm:min-h-[60px] md:min-h-[80px] shadow-neo-sm transition-all`;
+                            div.dataset.key = key;
+                            const prefix = data.question_type === 'true_false' ? '' : `<span class="mr-3 bg-white border-2 border-black rounded px-2 py-1 shadow-neo-sm shrink-0">${key}</span>`;
+                            div.innerHTML = `${prefix}<span class="flex-1 break-words min-w-0">${optionValue}</span>`;
+                            optionsArea.appendChild(div);
+                        }
+                    });
+                }
 
-            // Start countdown timer for host display
-            startTimer(data.time_limit);
+                // Start countdown timer for host display
+                startTimer(data.time_limit);
+            }, 3000);
         });
 
         // Timer function
@@ -214,6 +296,10 @@
 
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
+                    // Only force-end if the round hasn't already been ended by all players answering
+                    if (!roundOver) {
+                        socket.emit('force_end_round', { session_code: sessionCode });
+                    }
                 }
             }, 1000);
         }
@@ -224,18 +310,40 @@
             answerCountDisplay.innerText = `Answers: ${answersReceived}`;
         });
 
-        // Round ended — all players answered or time ran out
+        // Round ended — reveal the correct answer and show Next button
         socket.on('round_ended', function (data) {
             clearInterval(timerInterval);
+            roundOver = true; // Mark round as done so the timer doesn't emit force_end_round
+
+            // Highlight the correct answer option for the host/audience
+            if (data.correct_answer) {
+                // For multiple choice / true-false, highlight by key
+                const allOptions = optionsArea.querySelectorAll('[data-key]');
+                allOptions.forEach(opt => {
+                    if (opt.dataset.key === data.correct_answer) {
+                        opt.classList.add('correct-answer-host');
+                    } else {
+                        opt.style.opacity = '0.5';
+                    }
+                });
+
+                // For fill-in-the-blank, show the correct answer text
+                if (allOptions.length === 0) {
+                    const revealDiv = document.createElement('div');
+                    revealDiv.className = 'col-span-2 bg-neo-green border-4 border-black p-6 text-center shadow-neo mt-4 correct-answer-host';
+                    revealDiv.innerHTML = `<span class="text-xl md:text-2xl font-black">✅ Correct Answer: ${data.correct_answer}</span>`;
+                    optionsArea.appendChild(revealDiv);
+                }
+            }
+
             nextQuestionContainer.classList.remove('hidden');
         });
 
         // Game over
         socket.on('game_over', function (data) {
             clearInterval(timerInterval);
-            questionView.classList.add('hidden');
-            questionView.classList.remove('flex');
-            waitingView.classList.add('hidden');
+            clearTimeout(introTimeout);
+            hideAllViews();
             gameOverView.classList.remove('hidden');
             gameOverView.classList.add('flex');
         });
