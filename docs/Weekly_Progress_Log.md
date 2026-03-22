@@ -349,23 +349,27 @@ Implemented the complete live game play flow. The host lobby now features a "Str
 ## Week 11
 
 ### Work Completed
-- [ ] Real-time leaderboard view created
-- [ ] Host screen: Answer distribution bar chart reveal
-- [ ] Leaderboard updates triggered by answer submissions
-- [ ] Player feedback: Current rank and gap comparison messages
-- [ ] Final results podium/screen
+- ✅ Real-time leaderboard view created
+- ✅ Host screen: Answer distribution bar chart reveal
+- ✅ Leaderboard updates triggered by answer submissions
+- ✅ Player feedback: Current rank and gap comparison messages
+- ✅ Final results podium/screen
 
 ### Progress Summary
-[To be filled in]
+Successfully implemented real-time leaderboard and answer distribution features. The host screen now displays a dynamic bar chart showing the distribution of player answers when the round ends, followed by a dedicated leaderboard scoreboard between rounds. The player screen was enhanced to provide personalized feedback during the game, calculating and displaying the player's current rank and point gap to the person ahead of them. A final results podium was added to both the host and player screens to highlight the top 3 players at the end of the game alongside the final scores.
 
 ### Impediments/Challenges
-[To be filled in]
+- Synchronizing leaderboard UI transitions efficiently and avoiding overlapping SocketIO events required adding specific transition states (like `roundOver`) and managing `setTimeout` delays between the answer reveal and the leaderboard view.
+- Ensuring the answer distribution chart updates dynamically using reliable percentage calculations while matching the Neo-Brutalism CSS framework.
 
 ### Changes to Plan
-[To be filled in]
+- Integrated the Leaderboard view directly into the Host screen as an intermediate step between questions to mirror an authentic quiz show flow.
 
 ### Next Week Goals
-[To be filled in]
+- Implement independent study Flashcards view
+- AI-Assisted quiz generation from topic/notes
+- Add tutorial for first-time users
+- Improve modularity and responsive designs
 
 ---
 
