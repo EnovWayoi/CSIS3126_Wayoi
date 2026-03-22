@@ -95,8 +95,10 @@
     <!-- Waiting Between Rounds View -->
     <div id="between-rounds-view" class="hidden flex-col flex-1 items-center justify-center text-center">
         <div class="bg-neo-blue neo-card p-8 md:p-12 max-w-2xl w-full">
-            <h2 class="text-3xl md:text-4xl font-black mb-4 animate-pulse">Waiting for Next Question...</h2>
-            <p class="text-lg font-bold text-gray-600">The host will show the next question shortly.</p>
+            <h2 id="feedback-rank" class="text-3xl md:text-5xl font-black mb-2 animate-bounce text-white title-shadow"></h2>
+            <p id="feedback-gap" class="text-xl font-bold bg-white text-black inline-block px-4 py-2 border-4 border-black mb-6 transform rotate-1 shadow-neo-sm"></p>
+            
+            <p class="text-lg font-bold text-gray-800">Waiting for the host to show the next question...</p>
         </div>
     </div>
 
@@ -108,9 +110,13 @@
 
             <div class="flex flex-col items-center justify-center w-full">
                 <div
-                    class="text-6xl md:text-8xl font-black mb-8 bg-white border-8 border-black p-6 md:p-8 shadow-neo inline-block transform -rotate-2 text-neo-blue title-shadow">
+                    class="text-6xl md:text-8xl font-black mb-6 bg-white border-8 border-black p-4 md:p-6 shadow-neo inline-block transform -rotate-2 text-neo-blue title-shadow">
                     <span id="final-score">0</span>
                 </div>
+            </div>
+
+            <div id="player-final-podium" class="flex flex-col gap-2 mb-8 items-center justify-center">
+                <!-- Final leaderboard injected here -->
             </div>
 
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
@@ -174,7 +180,7 @@
     document.addEventListener("DOMContentLoaded", function () {
         const socket = io();
         const sessionCode = "{{ session.session_code }}";
-        const participantId = {{ participant_id }};
+        const participantId = parseInt("{{ participant_id }}", 10);
         const nickname = "{{ nickname }}";
 
         // Game state
@@ -183,9 +189,13 @@
         let currentQuestionId = null;
         let hasAnswered = false;
         let timerInterval = null;
+        let animationFrameId = null;
+        let questionStartTime = 0;
         let timeLeft = 0;
         let timedOut = false;
         let introTimeout = null;
+        let roundEndedTimeout = null;
+        let roundOver = false;
         let pendingResult = null;  // Stores the answer_result until round_ended reveals it
 
         // DOM elements
@@ -230,8 +240,10 @@
             hasAnswered = false;
             timedOut = false;
             pendingResult = null;
+            roundOver = false;
             currentQuestionId = data.question_id;
             clearTimeout(introTimeout);
+            clearTimeout(roundEndedTimeout);
 
             // --- STEP 1: Show Intro View for 3 seconds ---
             hideAllViews();
@@ -317,6 +329,7 @@
             if (hasAnswered) return;
             hasAnswered = true;
             clearInterval(timerInterval);
+            cancelAnimationFrame(animationFrameId);
 
             // Disable all option buttons
             const btns = document.querySelectorAll('.option-btn');
@@ -384,9 +397,10 @@
 
             // For fill-in-the-blank, show the correct answer text
             const fillInput = document.getElementById('fill-blank-input');
-            if (fillInput) {
+            if (fillInput && !document.getElementById('correct-answer-reveal')) {
                 const container = document.getElementById('fill-blank-container');
                 const corr = document.createElement('div');
+                corr.id = 'correct-answer-reveal';
                 corr.className = 'mt-4 text-lg font-bold bg-white border-4 border-black p-3 text-center text-green-700 shadow-neo';
                 corr.innerHTML = `Correct answer: ${correctAnswer}`;
                 container.appendChild(corr);
@@ -395,7 +409,11 @@
 
         // Round ended — NOW reveal the answer and feedback
         socket.on('round_ended', function (data) {
-            clearInterval(timerInterval);
+            if (roundOver) return;
+            cancelAnimationFrame(animationFrameId);
+            timerBar.style.width = '0%';
+            timerBar.style.transitionDuration = '0s';
+            roundOver = true;
 
             // Use the correct_answer from round_ended, or fall back to pendingResult
             const correctAnswer = data.correct_answer || (pendingResult ? pendingResult.correct_answer : null);
@@ -458,8 +476,36 @@
             }
 
             // After 4 seconds of showing the reveal, transition to between-rounds view
-            setTimeout(() => {
+            roundEndedTimeout = setTimeout(() => {
                 hideAllViews();
+
+                // Process leaderboard for rank and gap
+                if (data.leaderboard && data.leaderboard.length > 0) {
+                    const myNickname = "{{ nickname }}";
+                    const myIndex = data.leaderboard.findIndex(p => p.nickname === myNickname);
+                    
+                    if (myIndex !== -1) {
+                        const myRank = myIndex + 1;
+                        let suffix = "th";
+                        if (myRank % 10 === 1 && myRank % 100 !== 11) suffix = "st";
+                        else if (myRank % 10 === 2 && myRank % 100 !== 12) suffix = "nd";
+                        else if (myRank % 10 === 3 && myRank % 100 !== 13) suffix = "rd";
+                        
+                        document.getElementById('feedback-rank').innerText = `You are in ${myRank}${suffix} place!`;
+                        
+                        const gapEl = document.getElementById('feedback-gap');
+                        if (myIndex === 0) {
+                            gapEl.innerText = "You're in the lead!";
+                            gapEl.className = "text-xl font-bold bg-neo-green text-black inline-block px-4 py-2 border-4 border-black mb-6 transform -rotate-1 shadow-neo-sm";
+                        } else {
+                            const ahead = data.leaderboard[myIndex - 1];
+                            const gap = ahead.score - data.leaderboard[myIndex].score;
+                            gapEl.innerText = `${gap} points behind ${ahead.nickname}`;
+                            gapEl.className = "text-xl font-bold bg-white text-black inline-block px-4 py-2 border-4 border-black mb-6 transform rotate-1 shadow-neo-sm";
+                        }
+                    }
+                }
+
                 betweenRoundsView.classList.remove('hidden');
                 betweenRoundsView.classList.add('flex');
             }, 4000);
@@ -467,9 +513,29 @@
 
         // Game over
         socket.on('game_over', function (data) {
-            clearInterval(timerInterval);
+            cancelAnimationFrame(animationFrameId);
             clearTimeout(introTimeout);
+            clearTimeout(roundEndedTimeout);
             hideAllViews();
+
+            // Render Podium
+            if (data.leaderboard) {
+                const myNickname = "{{ nickname }}";
+                const podiumContainer = document.getElementById('player-final-podium');
+                podiumContainer.innerHTML = '';
+                
+                data.leaderboard.slice(0, 3).forEach((player, index) => {
+                    const div = document.createElement('div');
+                    let colors = ['bg-neo-yellow', 'bg-gray-300', 'bg-orange-300'];
+                    let labels = ['🥇 1st', '🥈 2nd', '🥉 3rd'];
+                    let isMe = player.nickname === myNickname;
+                    
+                    div.className = `${colors[index]} border-4 border-black p-2 sm:p-4 w-full max-w-sm text-xl sm:text-2xl font-black shadow-neo transform ${index===0 ? 'scale-105 mb-2 z-10' : 'scale-100 opacity-90'} ${isMe ? 'ring-4 ring-blue-500 ring-offset-4' : ''}`;
+                    div.innerHTML = `<div class="flex justify-between items-center"><span class="truncate">${labels[index]} ✨ ${player.nickname}</span> <span>${player.score}</span></div>`;
+                    podiumContainer.appendChild(div);
+                });
+            }
+
             gameOverView.classList.remove('hidden');
             gameOverView.classList.add('flex');
 
@@ -494,25 +560,35 @@
 
         // Timer function
         function startTimer(seconds) {
-            clearInterval(timerInterval);
-            timeLeft = seconds;
-            timeLeftEl.innerText = timeLeft;
+            cancelAnimationFrame(animationFrameId);
+            questionStartTime = Date.now();
+            const totalDurationMs = seconds * 1000;
+            
+            timerBar.style.transitionDuration = '0s'; // pure JS precision
             timerBar.style.width = '100%';
-            timerBar.style.transitionDuration = '1s';
+            timeLeftEl.innerText = seconds;
 
-            timerInterval = setInterval(() => {
-                timeLeft--;
-                timeLeftEl.innerText = timeLeft;
-                const pct = (timeLeft / seconds) * 100;
+            function updateTimer() {
+                const elapsedMs = Date.now() - questionStartTime;
+                const remainingMs = Math.max(0, totalDurationMs - elapsedMs);
+                
+                timeLeftEl.innerText = Math.ceil(remainingMs / 1000);
+                
+                const pct = (remainingMs / totalDurationMs) * 100;
                 timerBar.style.width = `${pct}%`;
 
-                if (timeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    // Auto-submit null answer on timeout
-                    timedOut = true;
-                    submitAnswer(null);
+                if (remainingMs <= 0) {
+                    timerBar.style.width = '0%';
+                    if (!roundOver && !timedOut) {
+                        timedOut = true;
+                        submitAnswer(null); // Timeout
+                    }
+                } else {
+                    animationFrameId = requestAnimationFrame(updateTimer);
                 }
-            }, 1000);
+            }
+            
+            animationFrameId = requestAnimationFrame(updateTimer);
         }
 
         // Utility: hide all views
