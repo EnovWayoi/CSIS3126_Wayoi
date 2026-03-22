@@ -165,8 +165,8 @@
     // Game State
     let currentQuestionIndex = 0;
     let score = 0;
-    let timerInterval = null;
-    let timeLeft = 0;
+    let animationFrameId = null;
+    let questionStartTime = 0;
     let hasAnswered = false;
     let maxPossibleScore = 0;
 
@@ -249,43 +249,50 @@
     }
 
     function startTimer(seconds) {
-        clearInterval(timerInterval);
-        timeLeft = seconds;
-        timerText.innerText = timeLeft;
+        cancelAnimationFrame(animationFrameId);
+        questionStartTime = Date.now();
+        const totalDurationMs = seconds * 1000;
+        
+        // Remove CSS transition lag so JS can control it smoothly and accurately
+        timerBar.style.transitionDuration = '0s';
         timerBar.style.width = '100%';
-        timerBar.style.transitionDuration = '1s';
+        timerText.innerText = seconds;
 
-        const totalTime = seconds;
+        function updateTimer() {
+            const elapsedMs = Date.now() - questionStartTime;
+            const remainingMs = Math.max(0, totalDurationMs - elapsedMs);
+            
+            timerText.innerText = Math.ceil(remainingMs / 1000);
 
-        timerInterval = setInterval(() => {
-            timeLeft--;
-            timerText.innerText = timeLeft;
-
-            const pct = (timeLeft / totalTime) * 100;
+            const pct = (remainingMs / totalDurationMs) * 100;
             timerBar.style.width = `${pct}%`;
 
-            if (timeLeft <= 0) {
-                clearInterval(timerInterval);
+            if (remainingMs <= 0) {
+                timerBar.style.width = '0%';
                 submitAnswer(null); // Timeout
+            } else {
+                animationFrameId = requestAnimationFrame(updateTimer);
             }
-        }, 1000);
+        }
+        
+        animationFrameId = requestAnimationFrame(updateTimer);
     }
 
     function submitAnswer(answer) {
         if (hasAnswered) return;
         hasAnswered = true;
-        clearInterval(timerInterval);
+        cancelAnimationFrame(animationFrameId);
 
         const q = questions[currentQuestionIndex];
         const isCorrect = answer && answer.toLowerCase() === q.correct.toLowerCase();
 
         if (isCorrect) {
-            // Calculate proportional score
-            // Formula: Math.round((1 - ((response_time / time_limit) / 2)) * points)
-            const responseTime = q.timeLimit - timeLeft;
-            const timePenaltyRatio = (responseTime / q.timeLimit) / 2;
-            const pointsEarned = Math.round((1 - timePenaltyRatio) * q.points);
-            updateScore(pointsEarned);
+            // Calculate proportional score using precise milliseconds
+            const elapsedMs = Date.now() - questionStartTime;
+            const timeRatio = Math.min(1.0, Math.max(0.0, elapsedMs / (q.timeLimit * 1000)));
+            const pointsEarned = Math.floor((1 - (timeRatio / 2)) * q.points);
+            
+            updateScore(Math.max(1, pointsEarned));
         }
 
         showFeedback(answer, q.correct, isCorrect, q.type);
