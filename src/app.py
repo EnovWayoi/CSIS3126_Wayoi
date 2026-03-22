@@ -502,7 +502,7 @@ def add_question(quiz_id):
             option_b = request.form.get('option_b', '').strip() or None
             option_c = request.form.get('option_c', '').strip() or None
             option_d = request.form.get('option_d', '').strip() or None
-            points = int(request.form.get('points', 10))
+            points = int(request.form.get('points', 1000))
             # Default time limits: MC=15s, T/F=10s, Fill-blank=20s
             default_times = {'multiple_choice': 15, 'true_false': 10, 'fill_blank': 20}
             time_limit = int(request.form.get('time_limit', default_times.get(question_type, 15)))
@@ -598,7 +598,7 @@ def edit_question(quiz_id, question_id):
             option_b = request.form.get('option_b', '').strip() or None
             option_c = request.form.get('option_c', '').strip() or None
             option_d = request.form.get('option_d', '').strip() or None
-            points = int(request.form.get('points', 10))
+            points = int(request.form.get('points', 1000))
             # Default time limits: MC=15s, T/F=10s, Fill-blank=20s
             default_times = {'multiple_choice': 15, 'true_false': 10, 'fill_blank': 20}
             time_limit = int(request.form.get('time_limit', default_times.get(question_type, 15)))
@@ -905,10 +905,7 @@ def player_game(session_code):
             conn.close()
             return redirect(url_for('index'))
 
-        # Always fetch the nickname from the DB using participant_id.
-        # This avoids a bug where multiple players in the same browser
-        # share the Flask session cookie (session['nickname'] gets
-        # overwritten by whoever joined last).
+        # Fetch the nickname from the DB using participant_id
         cursor.execute(
             "SELECT nickname FROM game_participants WHERE participant_id = %s",
             (participant_id,)
@@ -1064,7 +1061,8 @@ def handle_start_game(data):
         active_games[session_code] = {
             'streak_enabled': streak_enabled,
             'question_start_time': None,
-            'answers_received': 0
+            'answers_received': 0,
+            'answer_counts': {}
         }
 
         cursor.close()
@@ -1123,13 +1121,22 @@ def handle_next_question(data):
                 (session_code,)
             )
             conn.commit()
+
+            # Fetch final leaderboard
+            cursor.execute(
+                "SELECT nickname, score, streak FROM game_participants "
+                "WHERE session_id = %s ORDER BY score DESC",
+                (game_session['session_id'],)
+            )
+            leaderboard = cursor.fetchall()
+
             cursor.close()
             conn.close()
 
             # Clean up in-memory state
             active_games.pop(session_code, None)
 
-            emit('game_over', {'session_code': session_code}, room=session_code)
+            emit('game_over', {'session_code': session_code, 'leaderboard': leaderboard}, room=session_code)
             return
 
         # Get total question count for progress display
@@ -1154,6 +1161,7 @@ def handle_next_question(data):
         if session_code in active_games:
             active_games[session_code]['question_start_time'] = time.time() + 3
             active_games[session_code]['answers_received'] = 0
+            active_games[session_code]['answer_counts'] = {}
             active_games[session_code]['player_count'] = player_count
             active_games[session_code]['current_question_id'] = question['question_id']
             active_games[session_code]['current_correct_answer'] = question['correct_answer']
@@ -1246,8 +1254,8 @@ def handle_submit_answer(data):
         if is_correct:
             new_streak = current_streak + 1
             if streak_enabled:
-                # Streak bonus: +1 per streak, capped at +5
-                streak_bonus = min(new_streak, 5)
+                # Streak bonus: +10% of question points per streak, capped at +50%
+                streak_bonus = min(new_streak, 5) * int(question['points'] * 0.10)
         else:
             new_streak = 0  # Reset streak on incorrect answer
 
@@ -1259,6 +1267,11 @@ def handle_submit_answer(data):
             "VALUES (%s, %s, %s, %s, %s)",
             (participant_id, question_id, answer_given, is_correct, total_points)
         )
+
+        # Update answer counts
+        if session_code in active_games:
+            ans_key = (answer_given or '').strip()
+            active_games[session_code]['answer_counts'][ans_key] = active_games[session_code]['answer_counts'].get(ans_key, 0) + 1
 
         # Update participant score and streak
         cursor.execute(
@@ -1307,11 +1320,30 @@ def handle_submit_answer(data):
                 except Exception:
                     pass
 
+                # Fetch leaderboard
+                leaderboard = []
+                try:
+                    conn3 = get_db_connection()
+                    cursor3 = conn3.cursor(dictionary=True)
+                    cursor3.execute(
+                        "SELECT nickname, score, streak FROM game_participants "
+                        "WHERE session_id = (SELECT session_id FROM game_sessions WHERE session_code = %s) "
+                        "ORDER BY score DESC", (session_code,)
+                    )
+                    leaderboard = cursor3.fetchall()
+                    cursor3.close()
+                    conn3.close()
+                except Exception:
+                    pass
+
                 # Include the correct answer so players can see the reveal
                 correct_ans = active_games[session_code].get('current_correct_answer', '')
+                ans_counts = active_games[session_code].get('answer_counts', {})
                 emit('round_ended', {
                     'all_answered': True,
-                    'correct_answer': correct_ans
+                    'correct_answer': correct_ans,
+                    'answer_counts': ans_counts,
+                    'leaderboard': leaderboard
                 }, room=session_code)
 
     except Exception as e:
@@ -1326,9 +1358,7 @@ def handle_force_end_round(data):
 
     answers_received = active_games[session_code].get('answers_received', 0)
 
-    # Only advance current_question if nobody answered this round.
-    # If at least one player answered, submit_answer already incremented it
-    # when the last answer came in, so we must not do it again.
+    # Handle advancing the question if no answers were received
     if answers_received == 0:
         try:
             conn = get_db_connection()
@@ -1344,11 +1374,30 @@ def handle_force_end_round(data):
         except Exception:
             pass
 
+    # Fetch leaderboard
+    leaderboard = []
+    try:
+        conn_lb = get_db_connection()
+        cursor_lb = conn_lb.cursor(dictionary=True)
+        cursor_lb.execute(
+            "SELECT nickname, score, streak FROM game_participants "
+            "WHERE session_id = (SELECT session_id FROM game_sessions WHERE session_code = %s) "
+            "ORDER BY score DESC", (session_code,)
+        )
+        leaderboard = cursor_lb.fetchall()
+        cursor_lb.close()
+        conn_lb.close()
+    except Exception:
+        pass
+
     # Include the correct answer so players can see the reveal
     correct_ans = active_games[session_code].get('current_correct_answer', '')
+    ans_counts = active_games[session_code].get('answer_counts', {})
     emit('round_ended', {
         'all_answered': True,
-        'correct_answer': correct_ans
+        'correct_answer': correct_ans,
+        'answer_counts': ans_counts,
+        'leaderboard': leaderboard
     }, room=session_code)
 
 
