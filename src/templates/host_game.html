@@ -82,11 +82,23 @@
             </div>
         </div>
 
-        <!-- Next Question Button -->
-        <div id="next-question-container" class="mt-4 text-center hidden shrink-0">
-            <button id="next-question-btn" class="neo-btn bg-neo-green text-xl md:text-2xl px-12 py-3 w-full md:w-auto">
-                Next Question ➡️
-            </button>
+        </div>
+    </div>
+
+    <!-- Next Question Button -->
+    <div id="next-question-container" class="mt-4 text-center hidden shrink-0">
+        <button id="next-question-btn" class="neo-btn bg-neo-green text-xl md:text-2xl px-12 py-3 w-full md:w-auto">
+            Next Question ➡️
+        </button>
+    </div>
+
+    <!-- Leaderboard View -->
+    <div id="leaderboard-view" class="hidden flex-col flex-1 mt-4">
+        <div class="bg-neo-yellow neo-card p-6 md:p-8 max-w-2xl mx-auto w-full flex-1 flex flex-col min-h-0">
+            <h2 class="text-3xl md:text-5xl font-black mb-6 text-center tracking-tighter title-skew">Leaderboard</h2>
+            <div id="leaderboard-list" class="flex flex-col gap-2 overflow-y-auto flex-1 p-2">
+                <!-- Leaderboard items injected via JS -->
+            </div>
         </div>
     </div>
 
@@ -95,6 +107,10 @@
         <div class="bg-neo-pink neo-card p-8 md:p-12 max-w-2xl mx-auto w-full">
             <h2 class="text-5xl md:text-6xl font-black mb-6 tracking-tighter title-skew">Game Over!</h2>
             <p class="text-xl font-bold text-gray-700 mb-8">All questions have been answered.</p>
+
+            <div id="final-podium" class="flex flex-col gap-2 mb-8 items-center justify-center">
+                <!-- Final leaderboard injected here -->
+            </div>
 
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
                 <a href="{{ url_for('dashboard') }}"
@@ -162,6 +178,9 @@
         let currentCorrectAnswer = null;
         let introTimeout = null;
         let roundOver = false; // Prevents force_end_round from firing twice
+        let currentLeaderboard = [];
+        let animationFrameId = null;
+        let questionStartTime = 0;
 
         // Map question_type codes to friendly labels and colors
         const typeLabels = {
@@ -180,6 +199,8 @@
             questionView.classList.remove('flex');
             gameOverView.classList.add('hidden');
             gameOverView.classList.remove('flex');
+            document.getElementById('leaderboard-view').classList.add('hidden');
+            document.getElementById('leaderboard-view').classList.remove('flex');
         }
 
         // Join the SocketIO room as HOST
@@ -199,8 +220,34 @@
 
         // Next question button click
         nextQuestionBtn.addEventListener('click', function () {
-            nextQuestionContainer.classList.add('hidden');
-            socket.emit('host_next_question', { session_code: sessionCode });
+            if (nextQuestionBtn.innerText.includes('Leaderboard')) {
+                // Show leaderboard view
+                hideAllViews();
+                
+                // Render leaderboard
+                const lbContainer = document.getElementById('leaderboard-list');
+                lbContainer.innerHTML = '';
+                currentLeaderboard.slice(0, 5).forEach((player, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'bg-white neo-card p-4 flex justify-between items-center text-xl sm:text-2xl font-bold mb-2 shadow-neo-sm transform transition-all hover:-translate-y-1 hover:scale-105';
+                    // Apply gold/silver/bronze styling
+                    let medal = `<span class="inline-block w-8 text-center text-gray-500">${index + 1}.</span>`;
+                    if (index === 0) medal = '<span class="inline-block w-8 text-center">🥇</span>';
+                    else if (index === 1) medal = '<span class="inline-block w-8 text-center">🥈</span>';
+                    else if (index === 2) medal = '<span class="inline-block w-8 text-center">🥉</span>';
+                    
+                    div.innerHTML = `<span class="truncate">${medal} ${player.nickname} ${player.streak > 2 ? '🔥' : ''}</span> <span>${player.score}</span>`;
+                    lbContainer.appendChild(div);
+                });
+
+                document.getElementById('leaderboard-view').classList.remove('hidden');
+                document.getElementById('leaderboard-view').classList.add('flex');
+
+                nextQuestionBtn.innerText = 'Next Question ➡️';
+            } else {
+                nextQuestionContainer.classList.add('hidden');
+                socket.emit('host_next_question', { session_code: sessionCode });
+            }
         });
 
         // Receive new question from server
@@ -282,26 +329,35 @@
 
         // Timer function
         function startTimer(seconds) {
-            clearInterval(timerInterval);
-            let timeLeft = seconds;
-            timeLeftEl.innerText = timeLeft;
+            cancelAnimationFrame(animationFrameId);
+            questionStartTime = Date.now();
+            const totalDurationMs = seconds * 1000;
+            
+            timerBar.style.transitionDuration = '0s'; // Use pure JS for accuracy
             timerBar.style.width = '100%';
-            timerBar.style.transitionDuration = '1s';
+            timeLeftEl.innerText = seconds;
 
-            timerInterval = setInterval(() => {
-                timeLeft--;
-                timeLeftEl.innerText = timeLeft;
-                const pct = (timeLeft / seconds) * 100;
+            function updateTimer() {
+                const elapsedMs = Date.now() - questionStartTime;
+                const remainingMs = Math.max(0, totalDurationMs - elapsedMs);
+                
+                timeLeftEl.innerText = Math.ceil(remainingMs / 1000);
+                
+                const pct = (remainingMs / totalDurationMs) * 100;
                 timerBar.style.width = `${pct}%`;
 
-                if (timeLeft <= 0) {
-                    clearInterval(timerInterval);
+                if (remainingMs <= 0) {
+                    timerBar.style.width = '0%';
                     // Only force-end if the round hasn't already been ended by all players answering
                     if (!roundOver) {
                         socket.emit('force_end_round', { session_code: sessionCode });
                     }
+                } else {
+                    animationFrameId = requestAnimationFrame(updateTimer);
                 }
-            }, 1000);
+            }
+            
+            animationFrameId = requestAnimationFrame(updateTimer);
         }
 
         // Track player answers
@@ -312,15 +368,47 @@
 
         // Round ended — reveal the correct answer and show Next button
         socket.on('round_ended', function (data) {
-            clearInterval(timerInterval);
+            if (roundOver) return;
+            cancelAnimationFrame(animationFrameId);
+            timerBar.style.width = '0%';
+            timerBar.style.transitionDuration = '0s';
             roundOver = true; // Mark round as done so the timer doesn't emit force_end_round
 
             // Highlight the correct answer option for the host/audience
             if (data.correct_answer) {
                 // For multiple choice / true-false, highlight by key
                 const allOptions = optionsArea.querySelectorAll('[data-key]');
+                
+                // Calculate answer bar chart max distribution
+                let totalAnswers = 0;
+                if (data.answer_counts) {
+                    for (const key in data.answer_counts) { totalAnswers += data.answer_counts[key]; }
+                }
+
                 allOptions.forEach(opt => {
-                    if (opt.dataset.key === data.correct_answer) {
+                    const key = opt.dataset.key;
+
+                    // Display answer distribution bar
+                    if (data.answer_counts) {
+                        const count = data.answer_counts[key] || 0;
+                        const pct = totalAnswers > 0 ? (count / totalAnswers) * 100 : 0;
+                        
+                        const barDiv = document.createElement('div');
+                        barDiv.className = 'absolute bottom-0 left-0 bg-black opacity-30 h-4 md:h-6 transition-all duration-1000';
+                        barDiv.style.width = '0%';
+                        opt.classList.add('relative', 'overflow-hidden');
+                        opt.appendChild(barDiv);
+
+                        const countSpan = document.createElement('span');
+                        countSpan.className = 'absolute top-1 right-2 text-xl font-black opacity-50 bg-white px-2 rounded hidden sm:block';
+                        countSpan.innerText = count + ' (' + Math.round(pct) + '%)';
+                        opt.appendChild(countSpan);
+
+                        // Animate bar
+                        setTimeout(() => { barDiv.style.width = `${pct}%`; }, 100);
+                    }
+
+                    if (key === data.correct_answer) {
                         opt.classList.add('correct-answer-host');
                     } else {
                         opt.style.opacity = '0.5';
@@ -328,22 +416,47 @@
                 });
 
                 // For fill-in-the-blank, show the correct answer text
-                if (allOptions.length === 0) {
+                if (allOptions.length === 0 && !document.getElementById('correct-answer-host-reveal')) {
                     const revealDiv = document.createElement('div');
+                    revealDiv.id = 'correct-answer-host-reveal';
                     revealDiv.className = 'col-span-2 bg-neo-green border-4 border-black p-6 text-center shadow-neo mt-4 correct-answer-host';
                     revealDiv.innerHTML = `<span class="text-xl md:text-2xl font-black">✅ Correct Answer: ${data.correct_answer}</span>`;
                     optionsArea.appendChild(revealDiv);
                 }
             }
+            
+            // Store leaderboard
+            if (data.leaderboard) {
+                currentLeaderboard = data.leaderboard;
+            }
 
+            nextQuestionBtn.innerText = 'Show Leaderboard 🏆';
             nextQuestionContainer.classList.remove('hidden');
         });
 
         // Game over
         socket.on('game_over', function (data) {
-            clearInterval(timerInterval);
+            cancelAnimationFrame(animationFrameId);
             clearTimeout(introTimeout);
             hideAllViews();
+            nextQuestionContainer.classList.add('hidden'); // Hide NEXT button
+            
+            // Render Podium
+            if (data.leaderboard) {
+                const podiumContainer = document.getElementById('final-podium');
+                podiumContainer.innerHTML = '';
+                
+                data.leaderboard.slice(0, 3).forEach((player, index) => {
+                    const div = document.createElement('div');
+                    let colors = ['bg-neo-yellow', 'bg-gray-300', 'bg-orange-300'];
+                    let labels = ['🥇 1st Place', '🥈 2nd Place', '🥉 3rd Place'];
+                    
+                    div.className = `${colors[index]} border-4 border-black p-4 w-full text-2xl font-black shadow-neo transform ${index===0 ? 'scale-110 mb-2 z-10' : 'scale-100 opacity-90'}`;
+                    div.innerHTML = `<div>${labels[index]}</div><div class="truncate">${player.nickname}</div><div>${player.score} pts</div>`;
+                    podiumContainer.appendChild(div);
+                });
+            }
+            
             gameOverView.classList.remove('hidden');
             gameOverView.classList.add('flex');
         });
