@@ -41,7 +41,10 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 - **Room-based Play**: Users join a lobby via room code and wait for the host to start.
 - **Real-time Socket.IO**: Live gameplay is driven by WebSocket connections to ensure minimal latency for answers and question transitions.
 - **Dynamic Time Limits**: Questions have distinct default timers based on type (MC: 15s, T/F: 10s, Fill-in-Blank: 20s).
-- **Proportional Scoring & Streaks**: Points are rewarded based on response speed: `⌊(1 - (({response time} / {question timer}) / 2)) * {points possible}⌉`. Consecutive correct answers generate a streak bonus of up to +5 points.
+- **Proportional Scoring**: Points are rewarded based on exact millisecond response speed: `⌊(1 - (({response time} / {question timer}) / 2)) * {points possible}⌉`. By default, questions are worth 1000 points.
+- **Streak Bonus**: Consecutive correct answers grant a stacking +10% bonus of the question's base points (capped at +50% at a streak of 5).
+- **Smooth Real-Time Timers**: 60fps monitor-synced timers utilizing requestAnimationFrame for maximum visual precision across Solo and Live modes.
+- **Live Leaderboards**: Post-round host UI displays answer distributions, and player UIs show their live score gaps, ultimately ending with a dynamic podium.
 - **Host Controls**: Hosts control the pace of the game, manually advancing questions while tracking how many players have answered.
 
 ## Current Status
@@ -60,7 +63,9 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 - ✅ Anonymous Link Sharing & Solo Practice Mode implemented
 - ✅ Game Session & Participant Lobby Foundation established
 - ✅ Live Game Play Flow (Host controls, real-time question display, answer submissions)
-- ✅ Dynamic Proportional Scoring & Streak Bonus system implemented
+- ✅ High-Precision Proportional Scoring & Scaling Streak Bonus system implemented
+- ✅ Live Leaderboards, Answer Distribution Charts, and Result Podiums established
+- ✅ 60fps JavaScript Timer Synchronization implemented
 
 ## Setup Instructions
 
