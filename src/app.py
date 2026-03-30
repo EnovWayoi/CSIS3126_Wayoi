@@ -7,12 +7,15 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from flask_socketio import SocketIO, join_room, leave_room, emit
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
-from config.config import db_config
+from config.config import db_config, GEMINI_API_KEY
+from google import genai
+from pydantic import BaseModel, Field
 import random
 import string
 import socket
 import time
 import math
+from typing import List, Optional
 
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -42,9 +45,27 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 
+from contextlib import contextmanager
+
 # Database helper function
 def get_db_connection():
     return mysql.connector.connect(**db_config)
+
+@contextmanager
+def get_db_cursor(dictionary=False):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=dictionary)
+    try:
+        yield conn, cursor
+    finally:
+        try:
+            cursor.close()
+        except Exception:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 # User class for Flask-Login
@@ -60,21 +81,18 @@ class User(UserMixin):
 @login_manager.user_loader
 def load_user(user_id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM users WHERE user_id = %s", (user_id,))
-        user_data = cursor.fetchone()
-        cursor.close()
-        conn.close()
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            cursor.execute("SELECT * FROM users WHERE user_id = %s", (user_id,))
+            user_data = cursor.fetchone()
 
-        if user_data:
-            return User(
-                user_id=user_data['user_id'],
-                username=user_data['username'],
-                email=user_data['email'],
-                role=user_data['role']
-            )
-        return None
+            if user_data:
+                return User(
+                    user_id=user_data['user_id'],
+                    username=user_data['username'],
+                    email=user_data['email'],
+                    role=user_data['role']
+                )
+            return None
     except Exception as e:
         print(f"Error loading user: {e}")
         return None
@@ -123,34 +141,25 @@ def register():
 
         # Check if username or email already exists
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-
-            cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
-            if cursor.fetchone():
-                flash('Username already exists', 'danger')
-                cursor.close()
-                conn.close()
-                return render_template('register.html')
-
-            cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
-            if cursor.fetchone():
-                flash('Email already registered', 'danger')
-                cursor.close()
-                conn.close()
-                return render_template('register.html')
-
-            # Hash password and create user
-            password_hash = generate_password_hash(password)
-
-            cursor.execute(
-                "INSERT INTO users (username, email, password_hash, role) VALUES (%s, %s, %s, %s)",
-                (username, email, password_hash, 'host')  # Default role is 'host'
-            )
-            conn.commit()
-
-            cursor.close()
-            conn.close()
+            with get_db_cursor() as (conn, cursor):
+                cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+                if cursor.fetchone():
+                    flash('Username already exists', 'danger')
+                    return render_template('register.html')
+    
+                cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+                if cursor.fetchone():
+                    flash('Email already registered', 'danger')
+                    return render_template('register.html')
+    
+                # Hash password and create user
+                password_hash = generate_password_hash(password)
+    
+                cursor.execute(
+                    "INSERT INTO users (username, email, password_hash, role) VALUES (%s, %s, %s, %s)",
+                    (username, email, password_hash, 'host')  # Default role is 'host'
+                )
+                conn.commit()
 
             flash('Registration successful! Please log in.', 'success')
             return redirect(url_for('login'))
@@ -173,18 +182,13 @@ def login():
         password = request.form.get('password', '')
 
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor(dictionary=True)
-
-            # Find user by username or email
-            cursor.execute(
-                "SELECT * FROM users WHERE username = %s OR email = %s",
-                (username, username)
-            )
-            user_data = cursor.fetchone()
-
-            cursor.close()
-            conn.close()
+            with get_db_cursor(dictionary=True) as (conn, cursor):
+                # Find user by username or email
+                cursor.execute(
+                    "SELECT * FROM users WHERE username = %s OR email = %s",
+                    (username, username)
+                )
+                user_data = cursor.fetchone()
 
             if user_data and check_password_hash(user_data['password_hash'], password):
                 # Create user object and log in
@@ -223,23 +227,18 @@ def logout():
 @login_required
 def dashboard():
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        # Get user's quizzes
-        cursor.execute(
-            """SELECT q.*, COUNT(qs.question_id) as question_count
-               FROM quizzes q
-                        LEFT JOIN questions qs ON q.quiz_id = qs.quiz_id
-               WHERE q.created_by = %s
-               GROUP BY q.quiz_id
-               ORDER BY q.created_at DESC""",
-            (current_user.id,)
-        )
-        quizzes = cursor.fetchall()
-
-        cursor.close()
-        conn.close()
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            # Get user's quizzes
+            cursor.execute(
+                """SELECT q.*, COUNT(qs.question_id) as question_count
+                   FROM quizzes q
+                            LEFT JOIN questions qs ON q.quiz_id = qs.quiz_id
+                   WHERE q.created_by = %s
+                   GROUP BY q.quiz_id
+                   ORDER BY q.created_at DESC""",
+                (current_user.id,)
+            )
+            quizzes = cursor.fetchall()
 
         return render_template('dashboard.html', quizzes=quizzes)
 
@@ -251,6 +250,199 @@ def dashboard():
 # =============================================
 # Quiz Management Routes
 # =============================================
+
+# Pydantic schemas for AI generation
+class GeneratedQuestion(BaseModel):
+    question_text: str = Field(description="The actual question text")
+    question_type: str = Field(description="Must be one of: multiple_choice, true_false, fill_blank")
+    correct_answer: str = Field(description="For multiple_choice, must be exactly 'A', 'B', 'C', or 'D'. For true_false, must be exactly 'A' (True) or 'B' (False). For fill_blank, the exact text answer.")
+    option_a: Optional[str] = Field(description="Option A (for multiple choice) or 'True' (for true_false) or null (for fill_blank)")
+    option_b: Optional[str] = Field(description="Option B (for multiple choice) or 'False' (for true_false) or null (for fill_blank)")
+    option_c: Optional[str] = Field(description="Option C (for multiple choice only)")
+    option_d: Optional[str] = Field(description="Option D (for multiple choice only)")
+    time_limit: int = Field(description="Time limit in seconds. Suggest 20 for MC, 15 for T/F, 25 for Fill Blank")
+
+class GeneratedQuiz(BaseModel):
+    title: str = Field(description="A catchy, relevant title for the quiz")
+    description: str = Field(description="A short description of the quiz topic")
+    questions: list[GeneratedQuestion]
+
+# Generate Quiz with AI
+@app.route('/quiz/generate', methods=['GET', 'POST'])
+@login_required
+def generate_quiz():
+    if request.method == 'POST':
+        mode = request.form.get('mode', 'topic')
+        is_public = 1 if request.form.get('is_public') else 0
+        
+        contents = None
+        uploaded_file_obj = None
+        temp_path = None
+        user_defined_title = ''
+
+        try:
+            # Prepare Gemini inputs based on mode
+            client = genai.Client(api_key=GEMINI_API_KEY)
+            
+            if mode == 'topic':
+                topic = request.form.get('topic', '').strip()
+                notes = request.form.get('notes', '').strip()
+                num_questions = int(request.form.get('num_questions', 5))
+                difficulty = request.form.get('difficulty', 'medium')
+                
+                if not topic:
+                    flash('Topic is required', 'danger')
+                    return render_template('generate_quiz.html')
+                    
+                user_defined_title = topic
+                prompt = f"Generate a quiz about '{topic}'."
+                if notes:
+                    prompt += f" Base the quiz strictly on these notes: {notes}."
+                prompt += f" Make it {difficulty} difficulty. Generate exactly {num_questions} questions."
+                prompt += " Mix up the question types between multiple_choice, true_false, and fill_blank where appropriate."
+                contents = prompt
+                
+            elif mode == 'document':
+                user_defined_title = request.form.get('doc_title', '').strip()
+                if not user_defined_title:
+                    flash('Quiz Title is required', 'danger')
+                    return render_template('generate_quiz.html')
+                    
+                if 'document' not in request.files:
+                    flash('No document uploaded', 'danger')
+                    return render_template('generate_quiz.html')
+                    
+                file = request.files['document']
+                if file.filename == '':
+                    flash('No selected file', 'danger')
+                    return render_template('generate_quiz.html')
+
+                import tempfile
+                import os
+                from werkzeug.utils import secure_filename
+                
+                filename = secure_filename(file.filename)
+                allowed_extensions = {'.pdf', '.txt'}
+                ext = os.path.splitext(filename)[1].lower()
+                
+                if ext not in allowed_extensions:
+                    flash(f'Unsupported file type: {ext}. Please upload a PDF or TXT file.', 'danger')
+                    return render_template('generate_quiz.html')
+                    
+                temp_dir = tempfile.gettempdir()
+                # Use a unique identifier to avoid collisions
+                temp_path = os.path.join(temp_dir, f"wayoi_{int(time.time())}_{filename}")
+                file.save(temp_path)
+                
+                # Upload to Gemini File API
+                uploaded_file_obj = client.files.upload(file=temp_path)
+                
+                prompt = f"Analyze the attached document and generate a comprehensive quiz. Make the quiz highly relevant to the provided text. Determine the appropriate number of questions based on the length, depth, and detail of the material. Mix up the question types between multiple_choice, true_false, and fill_blank where appropriate."
+                contents = [uploaded_file_obj, prompt]
+                
+            else:
+                flash('Invalid generation mode', 'danger')
+                return render_template('generate_quiz.html')
+
+            # Call Gemini API
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=contents,
+                config=genai.types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=GeneratedQuiz,
+                    temperature=0.7,
+                ),
+            )
+            
+            quiz_data = GeneratedQuiz.model_validate_json(response.text)
+            
+            # Prefer the user title for Document Mode, fallback to generated otherwise
+            final_title = user_defined_title if mode == 'document' else quiz_data.title
+            
+            # Save to Database
+            with get_db_cursor() as (conn, cursor):
+                # 1. Insert Quiz
+                cursor.execute(
+                    "INSERT INTO quizzes (title, description, created_by, is_public) VALUES (%s, %s, %s, %s)",
+                    (final_title, quiz_data.description, current_user.id, is_public)
+                )
+                conn.commit()
+                quiz_id = cursor.lastrowid
+                
+                # 2. Insert Questions
+                order = 1
+                for q in quiz_data.questions:
+                    # normalize options for DB
+                    opt_a = q.option_a if q.question_type == 'multiple_choice' else ('True' if q.question_type == 'true_false' else None)
+                    opt_b = q.option_b if q.question_type == 'multiple_choice' else ('False' if q.question_type == 'true_false' else None)
+                    opt_c = q.option_c if q.question_type == 'multiple_choice' else None
+                    opt_d = q.option_d if q.question_type == 'multiple_choice' else None
+                    
+                    # Normalization fallback
+                    normalized_correct = q.correct_answer.strip()
+                    if q.question_type == 'multiple_choice':
+                        # Assume Gemini gave 'A', 'B', 'C', or 'D', but if it gave length > 1, try matching the actual options
+                        up_correct = normalized_correct.upper()
+                        if up_correct not in ['A', 'B', 'C', 'D']:
+                            lower_correct = normalized_correct.lower()
+                            if opt_a and lower_correct == str(opt_a).strip().lower():
+                                normalized_correct = 'A'
+                            elif opt_b and lower_correct == str(opt_b).strip().lower():
+                                normalized_correct = 'B'
+                            elif opt_c and lower_correct == str(opt_c).strip().lower():
+                                normalized_correct = 'C'
+                            elif opt_d and lower_correct == str(opt_d).strip().lower():
+                                normalized_correct = 'D'
+                            else:
+                                normalized_correct = 'A' # fallback
+                        else:
+                            normalized_correct = up_correct
+                    elif q.question_type == 'true_false':
+                        if normalized_correct.upper() == 'TRUE':
+                            normalized_correct = 'A'
+                        elif normalized_correct.upper() == 'FALSE':
+                            normalized_correct = 'B'
+                        elif normalized_correct.upper() not in ['A', 'B']:
+                            normalized_correct = 'A' # fallback
+                        else:
+                            normalized_correct = normalized_correct.upper()
+                    
+                    cursor.execute(
+                        """INSERT INTO questions
+                           (quiz_id, question_text, question_type, correct_answer,
+                            option_a, option_b, option_c, option_d, points, time_limit, question_order)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                        (quiz_id, q.question_text, q.question_type, normalized_correct,
+                         opt_a, opt_b, opt_c, opt_d, 1000, q.time_limit, order)
+                    )
+                    order += 1
+                    
+                conn.commit()
+            
+            flash('Quiz successfully generated by AI! Please review and edit if necessary.', 'success')
+            return redirect(url_for('edit_quiz', quiz_id=quiz_id))
+
+        except Exception as e:
+            print(f"Error calling Gemini API: {e}")
+            flash('Error generating quiz with AI. Please try again or check your API key.', 'danger')
+            return render_template('generate_quiz.html')
+            
+        finally:
+            # Clean up generated files safely
+            if temp_path and 'os' in locals() and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception as e:
+                    print(f"Error deleting temp file {temp_path}: {e}")
+                    
+            if uploaded_file_obj and 'client' in locals():
+                try:
+                    client.files.delete(name=uploaded_file_obj.name)
+                except Exception as e:
+                    print(f"Error deleting remote file {uploaded_file_obj.name}: {e}")
+
+    return render_template('generate_quiz.html')
 
 # Create Quiz
 @app.route('/quiz/create', methods=['GET', 'POST'])
@@ -266,16 +458,13 @@ def create_quiz():
             return render_template('create_quiz.html')
 
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO quizzes (title, description, created_by, is_public) VALUES (%s, %s, %s, %s)",
-                (title, description, current_user.id, is_public)
-            )
-            conn.commit()
-            quiz_id = cursor.lastrowid
-            cursor.close()
-            conn.close()
+            with get_db_cursor() as (conn, cursor):
+                cursor.execute(
+                    "INSERT INTO quizzes (title, description, created_by, is_public) VALUES (%s, %s, %s, %s)",
+                    (title, description, current_user.id, is_public)
+                )
+                conn.commit()
+                quiz_id = cursor.lastrowid
 
             flash('Quiz created successfully! Now add some questions.', 'success')
             return redirect(url_for('edit_quiz', quiz_id=quiz_id))
@@ -291,35 +480,26 @@ def create_quiz():
 @app.route('/quiz/<int:quiz_id>')
 def view_quiz(quiz_id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-        quiz = cursor.fetchone()
-
-        if not quiz:
-            flash('Quiz not found', 'danger')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('index'))
-
-        # Check access permission: public quizzes can be viewed by anyone,
-        # private quizzes only by the creator.
-        if quiz['is_public'] == 0:
-            if not current_user.is_authenticated or quiz['created_by'] != int(current_user.id):
-                flash('You do not have permission to view this private quiz', 'danger')
-                cursor.close()
-                conn.close()
-                return redirect(url_for('dashboard') if current_user.is_authenticated else url_for('index'))
-
-        cursor.execute(
-            "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC",
-            (quiz_id,)
-        )
-        questions = cursor.fetchall()
-
-        cursor.close()
-        conn.close()
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+            quiz = cursor.fetchone()
+    
+            if not quiz:
+                flash('Quiz not found', 'danger')
+                return redirect(url_for('index'))
+    
+            # Check access permission: public quizzes can be viewed by anyone,
+            # private quizzes only by the creator.
+            if quiz['is_public'] == 0:
+                if not current_user.is_authenticated or quiz['created_by'] != int(current_user.id):
+                    flash('You do not have permission to view this private quiz', 'danger')
+                    return redirect(url_for('dashboard') if current_user.is_authenticated else url_for('index'))
+    
+            cursor.execute(
+                "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC",
+                (quiz_id,)
+            )
+            questions = cursor.fetchall()
 
         return render_template('view_quiz.html', quiz=quiz, questions=questions)
 
@@ -332,44 +512,33 @@ def view_quiz(quiz_id):
 @app.route('/quiz/<int:quiz_id>/solo')
 def solo_quiz(quiz_id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-        quiz = cursor.fetchone()
-
-        if not quiz:
-            flash('Quiz not found', 'danger')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('index'))
-
-        # Check access permission: public quizzes can be viewed by anyone,
-        # private quizzes only by the creator.
-        if quiz['is_public'] == 0:
-            if not current_user.is_authenticated or quiz['created_by'] != int(current_user.id):
-                flash('You do not have permission to play this private quiz', 'danger')
-                cursor.close()
-                conn.close()
-                return redirect(url_for('dashboard') if current_user.is_authenticated else url_for('index'))
-
-        cursor.execute(
-            "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC",
-            (quiz_id,)
-        )
-        questions = cursor.fetchall()
-        
-        if not questions:
-            flash('Cannot play a quiz with no questions. Please add questions first.', 'danger')
-            cursor.close()
-            conn.close()
-            if current_user.is_authenticated:
-                return redirect(url_for('view_quiz', quiz_id=quiz_id))
-            else:
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+            quiz = cursor.fetchone()
+    
+            if not quiz:
+                flash('Quiz not found', 'danger')
                 return redirect(url_for('index'))
-
-        cursor.close()
-        conn.close()
+    
+            # Check access permission: public quizzes can be viewed by anyone,
+            # private quizzes only by the creator.
+            if quiz['is_public'] == 0:
+                if not current_user.is_authenticated or quiz['created_by'] != int(current_user.id):
+                    flash('You do not have permission to play this private quiz', 'danger')
+                    return redirect(url_for('dashboard') if current_user.is_authenticated else url_for('index'))
+    
+            cursor.execute(
+                "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC",
+                (quiz_id,)
+            )
+            questions = cursor.fetchall()
+            
+            if not questions:
+                flash('Cannot play a quiz with no questions. Please add questions first.', 'danger')
+                if current_user.is_authenticated:
+                    return redirect(url_for('view_quiz', quiz_id=quiz_id))
+                else:
+                    return redirect(url_for('index'))
 
         # Render the solo game interface
         return render_template('solo_game.html', quiz=quiz, questions=questions)
@@ -379,57 +548,88 @@ def solo_quiz(quiz_id):
         return redirect(url_for('dashboard') if current_user.is_authenticated else url_for('index'))
 
 
+# Flashcards Mode
+@app.route('/quiz/<int:quiz_id>/flashcards')
+def flashcards_quiz(quiz_id):
+    try:
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+            quiz = cursor.fetchone()
+    
+            if not quiz:
+                flash('Quiz not found', 'danger')
+                return redirect(url_for('index'))
+    
+            # Check access permission: public quizzes can be viewed by anyone,
+            # private quizzes only by the creator.
+            if quiz['is_public'] == 0:
+                if not current_user.is_authenticated or quiz['created_by'] != int(current_user.id):
+                    flash('You do not have permission to view this private quiz', 'danger')
+                    return redirect(url_for('dashboard') if current_user.is_authenticated else url_for('index'))
+    
+            cursor.execute(
+                "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC",
+                (quiz_id,)
+            )
+            questions = cursor.fetchall()
+            
+            if not questions:
+                flash('Cannot use flashcards with a quiz with no questions. Please add questions first.', 'danger')
+                if current_user.is_authenticated:
+                    return redirect(url_for('view_quiz', quiz_id=quiz_id))
+                else:
+                    return redirect(url_for('index'))
+
+        # Render the flashcards interface
+        return render_template('flashcards.html', quiz=quiz, questions=questions)
+
+    except Exception as e:
+        flash(f'Error loading flashcards: {str(e)}', 'danger')
+        return redirect(url_for('dashboard') if current_user.is_authenticated else url_for('index'))
+
+
 # Edit Quiz
 @app.route('/quiz/<int:quiz_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_quiz(quiz_id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-        quiz = cursor.fetchone()
-
-        if not quiz:
-            flash('Quiz not found', 'danger')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('dashboard'))
-
-        if quiz['created_by'] != int(current_user.id):
-            flash('You do not have permission to edit this quiz', 'danger')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('dashboard'))
-
-        if request.method == 'POST':
-            title = request.form.get('title', '').strip()
-            description = request.form.get('description', '').strip()
-            is_public = 1 if request.form.get('is_public') else 0
-
-            if not title:
-                flash('Quiz title is required', 'danger')
-            else:
-                cursor.execute(
-                    "UPDATE quizzes SET title = %s, description = %s, is_public = %s WHERE quiz_id = %s",
-                    (title, description, is_public, quiz_id)
-                )
-                conn.commit()
-                flash('Quiz updated successfully!', 'success')
-
-                # Refresh quiz data
-                cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-                quiz = cursor.fetchone()
-
-        # Get questions for this quiz
-        cursor.execute(
-            "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC",
-            (quiz_id,)
-        )
-        questions = cursor.fetchall()
-
-        cursor.close()
-        conn.close()
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+            quiz = cursor.fetchone()
+    
+            if not quiz:
+                flash('Quiz not found', 'danger')
+                return redirect(url_for('dashboard'))
+    
+            if quiz['created_by'] != int(current_user.id):
+                flash('You do not have permission to edit this quiz', 'danger')
+                return redirect(url_for('dashboard'))
+    
+            if request.method == 'POST':
+                title = request.form.get('title', '').strip()
+                description = request.form.get('description', '').strip()
+                is_public = 1 if request.form.get('is_public') else 0
+    
+                if not title:
+                    flash('Quiz title is required', 'danger')
+                else:
+                    cursor.execute(
+                        "UPDATE quizzes SET title = %s, description = %s, is_public = %s WHERE quiz_id = %s",
+                        (title, description, is_public, quiz_id)
+                    )
+                    conn.commit()
+                    flash('Quiz updated successfully!', 'success')
+    
+                    # Refresh quiz data
+                    cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+                    quiz = cursor.fetchone()
+    
+            # Get questions for this quiz
+            cursor.execute(
+                "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC",
+                (quiz_id,)
+            )
+            questions = cursor.fetchall()
 
         return render_template('edit_quiz.html', quiz=quiz, questions=questions)
 
@@ -443,23 +643,18 @@ def edit_quiz(quiz_id):
 @login_required
 def delete_quiz(quiz_id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-        quiz = cursor.fetchone()
-
-        if not quiz:
-            flash('Quiz not found', 'danger')
-        elif quiz['created_by'] != int(current_user.id):
-            flash('You do not have permission to delete this quiz', 'danger')
-        else:
-            cursor.execute("DELETE FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-            conn.commit()
-            flash('Quiz deleted successfully', 'success')
-
-        cursor.close()
-        conn.close()
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+            quiz = cursor.fetchone()
+    
+            if not quiz:
+                flash('Quiz not found', 'danger')
+            elif quiz['created_by'] != int(current_user.id):
+                flash('You do not have permission to delete this quiz', 'danger')
+            else:
+                cursor.execute("DELETE FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+                conn.commit()
+                flash('Quiz deleted successfully', 'success')
 
     except Exception as e:
         flash(f'Error deleting quiz: {str(e)}', 'danger')
@@ -476,83 +671,73 @@ def delete_quiz(quiz_id):
 @login_required
 def add_question(quiz_id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+            quiz = cursor.fetchone()
+    
+            if not quiz:
+                flash('Quiz not found', 'danger')
+                return redirect(url_for('dashboard'))
+    
+            if quiz['created_by'] != int(current_user.id):
+                flash('You do not have permission to modify this quiz', 'danger')
+                return redirect(url_for('dashboard'))
+    
+            if request.method == 'POST':
+                question_text = request.form.get('question_text', '').strip()
+                question_type = request.form.get('question_type', 'multiple_choice')
+                correct_answer = request.form.get('correct_answer', '').strip()
+                option_a = request.form.get('option_a', '').strip() or None
+                option_b = request.form.get('option_b', '').strip() or None
+                option_c = request.form.get('option_c', '').strip() or None
+                option_d = request.form.get('option_d', '').strip() or None
+                points = int(request.form.get('points', 1000))
+                # Default time limits: MC=20s, T/F=15s, Fill-blank=25s
+                default_times = {'multiple_choice': 20, 'true_false': 15, 'fill_blank': 25}
+                time_limit = int(request.form.get('time_limit', default_times.get(question_type, 20)))
+    
+                if not question_text:
+                    flash('Question text is required', 'danger')
+                    return render_template('add_question.html', quiz=quiz)
+    
+                if not correct_answer:
+                    flash('Correct answer is required', 'danger')
+                    return render_template('add_question.html', quiz=quiz)
+    
+                # Handle true/false options
+                if question_type == 'true_false':
+                    option_a = 'True'
+                    option_b = 'False'
+                    option_c = None
+                    option_d = None
+    
+                # Handle fill_blank options
+                if question_type == 'fill_blank':
+                    option_a = None
+                    option_b = None
+                    option_c = None
+                    option_d = None
+    
+                # Get next question order
+                cursor.execute(
+                    "SELECT COALESCE(MAX(question_order), 0) + 1 AS next_order FROM questions WHERE quiz_id = %s",
+                    (quiz_id,)
+                )
+                next_order = cursor.fetchone()['next_order']
+    
+                cursor.execute(
+                    """INSERT INTO questions
+                       (quiz_id, question_text, question_type, correct_answer,
+                        option_a, option_b, option_c, option_d, points, time_limit, question_order)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (quiz_id, question_text, question_type, correct_answer,
+                     option_a, option_b, option_c, option_d, points, time_limit, next_order)
+                )
+                conn.commit()
+    
+                flash('Question added successfully!', 'success')
+                return redirect(url_for('edit_quiz', quiz_id=quiz_id))
 
-        cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-        quiz = cursor.fetchone()
-
-        if not quiz:
-            flash('Quiz not found', 'danger')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('dashboard'))
-
-        if quiz['created_by'] != int(current_user.id):
-            flash('You do not have permission to modify this quiz', 'danger')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('dashboard'))
-
-        if request.method == 'POST':
-            question_text = request.form.get('question_text', '').strip()
-            question_type = request.form.get('question_type', 'multiple_choice')
-            correct_answer = request.form.get('correct_answer', '').strip()
-            option_a = request.form.get('option_a', '').strip() or None
-            option_b = request.form.get('option_b', '').strip() or None
-            option_c = request.form.get('option_c', '').strip() or None
-            option_d = request.form.get('option_d', '').strip() or None
-            points = int(request.form.get('points', 1000))
-            # Default time limits: MC=15s, T/F=10s, Fill-blank=20s
-            default_times = {'multiple_choice': 15, 'true_false': 10, 'fill_blank': 20}
-            time_limit = int(request.form.get('time_limit', default_times.get(question_type, 15)))
-
-            if not question_text:
-                flash('Question text is required', 'danger')
-                return render_template('add_question.html', quiz=quiz)
-
-            if not correct_answer:
-                flash('Correct answer is required', 'danger')
-                return render_template('add_question.html', quiz=quiz)
-
-            # Handle true/false options
-            if question_type == 'true_false':
-                option_a = 'True'
-                option_b = 'False'
-                option_c = None
-                option_d = None
-
-            # Handle fill_blank options
-            if question_type == 'fill_blank':
-                option_a = None
-                option_b = None
-                option_c = None
-                option_d = None
-
-            # Get next question order
-            cursor.execute(
-                "SELECT COALESCE(MAX(question_order), 0) + 1 AS next_order FROM questions WHERE quiz_id = %s",
-                (quiz_id,)
-            )
-            next_order = cursor.fetchone()['next_order']
-
-            cursor.execute(
-                """INSERT INTO questions
-                   (quiz_id, question_text, question_type, correct_answer,
-                    option_a, option_b, option_c, option_d, points, time_limit, question_order)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                (quiz_id, question_text, question_type, correct_answer,
-                 option_a, option_b, option_c, option_d, points, time_limit, next_order)
-            )
-            conn.commit()
-
-            flash('Question added successfully!', 'success')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('edit_quiz', quiz_id=quiz_id))
-
-        cursor.close()
-        conn.close()
         return render_template('add_question.html', quiz=quiz)
 
     except Exception as e:
@@ -565,79 +750,69 @@ def add_question(quiz_id):
 @login_required
 def edit_question(quiz_id, question_id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        # Verify quiz ownership
-        cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-        quiz = cursor.fetchone()
-
-        if not quiz or quiz['created_by'] != int(current_user.id):
-            flash('You do not have permission to modify this quiz', 'danger')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('dashboard'))
-
-        cursor.execute(
-            "SELECT * FROM questions WHERE question_id = %s AND quiz_id = %s",
-            (question_id, quiz_id)
-        )
-        question = cursor.fetchone()
-
-        if not question:
-            flash('Question not found', 'danger')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('edit_quiz', quiz_id=quiz_id))
-
-        if request.method == 'POST':
-            question_text = request.form.get('question_text', '').strip()
-            question_type = request.form.get('question_type', 'multiple_choice')
-            correct_answer = request.form.get('correct_answer', '').strip()
-            option_a = request.form.get('option_a', '').strip() or None
-            option_b = request.form.get('option_b', '').strip() or None
-            option_c = request.form.get('option_c', '').strip() or None
-            option_d = request.form.get('option_d', '').strip() or None
-            points = int(request.form.get('points', 1000))
-            # Default time limits: MC=15s, T/F=10s, Fill-blank=20s
-            default_times = {'multiple_choice': 15, 'true_false': 10, 'fill_blank': 20}
-            time_limit = int(request.form.get('time_limit', default_times.get(question_type, 15)))
-
-            if not question_text or not correct_answer:
-                flash('Question text and correct answer are required', 'danger')
-                return render_template('edit_question.html', quiz=quiz, question=question)
-
-            if question_type == 'true_false':
-                option_a = 'True'
-                option_b = 'False'
-                option_c = None
-                option_d = None
-
-            if question_type == 'fill_blank':
-                option_a = None
-                option_b = None
-                option_c = None
-                option_d = None
-
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            # Verify quiz ownership
+            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+            quiz = cursor.fetchone()
+    
+            if not quiz or quiz['created_by'] != int(current_user.id):
+                flash('You do not have permission to modify this quiz', 'danger')
+                return redirect(url_for('dashboard'))
+    
             cursor.execute(
-                """UPDATE questions SET
-                   question_text = %s, question_type = %s, correct_answer = %s,
-                   option_a = %s, option_b = %s, option_c = %s, option_d = %s,
-                   points = %s, time_limit = %s
-                   WHERE question_id = %s AND quiz_id = %s""",
-                (question_text, question_type, correct_answer,
-                 option_a, option_b, option_c, option_d,
-                 points, time_limit, question_id, quiz_id)
+                "SELECT * FROM questions WHERE question_id = %s AND quiz_id = %s",
+                (question_id, quiz_id)
             )
-            conn.commit()
+            question = cursor.fetchone()
+    
+            if not question:
+                flash('Question not found', 'danger')
+                return redirect(url_for('edit_quiz', quiz_id=quiz_id))
+    
+            if request.method == 'POST':
+                question_text = request.form.get('question_text', '').strip()
+                question_type = request.form.get('question_type', 'multiple_choice')
+                correct_answer = request.form.get('correct_answer', '').strip()
+                option_a = request.form.get('option_a', '').strip() or None
+                option_b = request.form.get('option_b', '').strip() or None
+                option_c = request.form.get('option_c', '').strip() or None
+                option_d = request.form.get('option_d', '').strip() or None
+                points = int(request.form.get('points', 1000))
+                # Default time limits: MC=15s, T/F=10s, Fill-blank=20s
+                default_times = {'multiple_choice': 15, 'true_false': 10, 'fill_blank': 20}
+                time_limit = int(request.form.get('time_limit', default_times.get(question_type, 15)))
+    
+                if not question_text or not correct_answer:
+                    flash('Question text and correct answer are required', 'danger')
+                    return render_template('edit_question.html', quiz=quiz, question=question)
+    
+                if question_type == 'true_false':
+                    option_a = 'True'
+                    option_b = 'False'
+                    option_c = None
+                    option_d = None
+    
+                if question_type == 'fill_blank':
+                    option_a = None
+                    option_b = None
+                    option_c = None
+                    option_d = None
+    
+                cursor.execute(
+                    """UPDATE questions SET
+                       question_text = %s, question_type = %s, correct_answer = %s,
+                       option_a = %s, option_b = %s, option_c = %s, option_d = %s,
+                       points = %s, time_limit = %s
+                       WHERE question_id = %s AND quiz_id = %s""",
+                    (question_text, question_type, correct_answer,
+                     option_a, option_b, option_c, option_d,
+                     points, time_limit, question_id, quiz_id)
+                )
+                conn.commit()
+    
+                flash('Question updated successfully!', 'success')
+                return redirect(url_for('edit_quiz', quiz_id=quiz_id))
 
-            flash('Question updated successfully!', 'success')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('edit_quiz', quiz_id=quiz_id))
-
-        cursor.close()
-        conn.close()
         return render_template('edit_question.html', quiz=quiz, question=question)
 
     except Exception as e:
@@ -650,28 +825,22 @@ def edit_question(quiz_id, question_id):
 @login_required
 def delete_question(quiz_id, question_id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        # Verify quiz ownership
-        cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-        quiz = cursor.fetchone()
-
-        if not quiz or quiz['created_by'] != int(current_user.id):
-            flash('You do not have permission to modify this quiz', 'danger')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('dashboard'))
-
-        cursor.execute(
-            "DELETE FROM questions WHERE question_id = %s AND quiz_id = %s",
-            (question_id, quiz_id)
-        )
-        conn.commit()
-
-        flash('Question deleted successfully', 'success')
-        cursor.close()
-        conn.close()
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            # Verify quiz ownership
+            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+            quiz = cursor.fetchone()
+    
+            if not quiz or quiz['created_by'] != int(current_user.id):
+                flash('You do not have permission to modify this quiz', 'danger')
+                return redirect(url_for('dashboard'))
+    
+            cursor.execute(
+                "DELETE FROM questions WHERE question_id = %s AND quiz_id = %s",
+                (question_id, quiz_id)
+            )
+            conn.commit()
+    
+            flash('Question deleted successfully', 'success')
 
     except Exception as e:
         flash(f'Error deleting question: {str(e)}', 'danger')
@@ -687,43 +856,34 @@ def delete_question(quiz_id, question_id):
 @login_required
 def host_game(quiz_id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-        quiz = cursor.fetchone()
-
-        if not quiz or quiz['created_by'] != int(current_user.id):
-            flash('Quiz not found or you do not have permission to host it.', 'danger')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('dashboard'))
-
-        cursor.execute("SELECT COUNT(*) as count FROM questions WHERE quiz_id = %s", (quiz_id,))
-        question_count = cursor.fetchone()['count']
-
-        if question_count == 0:
-            flash('Cannot host a quiz with 0 questions. Please add questions first.', 'danger')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('dashboard'))
-
-        # Generate a 6-character random alphanumeric session code
-        session_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-
-        cursor.execute(
-            "INSERT INTO game_sessions (session_code, quiz_id, host_id, status) VALUES (%s, %s, %s, %s)",
-            (session_code, quiz_id, current_user.id, 'waiting')
-        )
-        conn.commit()
-        session_id = cursor.lastrowid
-        
-        # Fetch the created session for the template
-        cursor.execute("SELECT * FROM game_sessions WHERE session_id = %s", (session_id,))
-        game_session = cursor.fetchone()
-
-        cursor.close()
-        conn.close()
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+            quiz = cursor.fetchone()
+    
+            if not quiz or quiz['created_by'] != int(current_user.id):
+                flash('Quiz not found or you do not have permission to host it.', 'danger')
+                return redirect(url_for('dashboard'))
+    
+            cursor.execute("SELECT COUNT(*) as count FROM questions WHERE quiz_id = %s", (quiz_id,))
+            question_count = cursor.fetchone()['count']
+    
+            if question_count == 0:
+                flash('Cannot host a quiz with 0 questions. Please add questions first.', 'danger')
+                return redirect(url_for('dashboard'))
+    
+            # Generate a 6-character random alphanumeric session code
+            session_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    
+            cursor.execute(
+                "INSERT INTO game_sessions (session_code, quiz_id, host_id, status) VALUES (%s, %s, %s, %s)",
+                (session_code, quiz_id, current_user.id, 'waiting')
+            )
+            conn.commit()
+            session_id = cursor.lastrowid
+            
+            # Fetch the created session for the template
+            cursor.execute("SELECT * FROM game_sessions WHERE session_id = %s", (session_id,))
+            game_session = cursor.fetchone()
 
         # Get local IP and port for display
         local_ip = get_local_ip()
@@ -741,25 +901,21 @@ def host_game(quiz_id):
 @login_required
 def cancel_session(session_id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            cursor.execute("SELECT * FROM game_sessions WHERE session_id = %s", (session_id,))
+            game_session = cursor.fetchone()
+    
+            if game_session and game_session['host_id'] == current_user.id:
+                # Notify players in the lobby
+                session_code = game_session['session_code']
+                socketio.emit('session_cancelled', room=session_code)
+    
+                cursor.execute("DELETE FROM game_sessions WHERE session_id = %s", (session_id,))
+                conn.commit()
+                flash('Game session cancelled successfully.', 'success')
+            else:
+                flash('Unauthorized or session not found.', 'danger')
 
-        cursor.execute("SELECT * FROM game_sessions WHERE session_id = %s", (session_id,))
-        game_session = cursor.fetchone()
-
-        if game_session and game_session['host_id'] == current_user.id:
-            # Notify players in the lobby
-            session_code = game_session['session_code']
-            socketio.emit('session_cancelled', room=session_code)
-
-            cursor.execute("DELETE FROM game_sessions WHERE session_id = %s", (session_id,))
-            conn.commit()
-            flash('Game session cancelled successfully.', 'success')
-        else:
-            flash('Unauthorized or session not found.', 'danger')
-
-        cursor.close()
-        conn.close()
     except Exception as e:
         flash(f'Error cancelling session: {str(e)}', 'danger')
 
@@ -776,43 +932,34 @@ def join_game():
         return redirect(url_for('index'))
 
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        # Check if session exists and is waiting
-        cursor.execute(
-            "SELECT * FROM game_sessions WHERE session_code = %s AND status = 'waiting'",
-            (session_code,)
-        )
-        game_session = cursor.fetchone()
-
-        if not game_session:
-            flash('Invalid session code or the game has already started.', 'danger')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('index'))
-
-        # Check if nickname already taken in this session
-        cursor.execute(
-            "SELECT * FROM game_participants WHERE session_id = %s AND nickname = %s",
-            (game_session['session_id'], nickname)
-        )
-        if cursor.fetchone():
-            flash('That nickname is already taken in this game!', 'danger')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('index'))
-
-        # Insert participant
-        cursor.execute(
-            "INSERT INTO game_participants (session_id, nickname) VALUES (%s, %s)",
-            (game_session['session_id'], nickname)
-        )
-        conn.commit()
-        participant_id = cursor.lastrowid
-
-        cursor.close()
-        conn.close()
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            # Check if session exists and is waiting
+            cursor.execute(
+                "SELECT * FROM game_sessions WHERE session_code = %s AND status = 'waiting'",
+                (session_code,)
+            )
+            game_session = cursor.fetchone()
+    
+            if not game_session:
+                flash('Invalid session code or the game has already started.', 'danger')
+                return redirect(url_for('index'))
+    
+            # Check if nickname already taken in this session
+            cursor.execute(
+                "SELECT * FROM game_participants WHERE session_id = %s AND nickname = %s",
+                (game_session['session_id'], nickname)
+            )
+            if cursor.fetchone():
+                flash('That nickname is already taken in this game!', 'danger')
+                return redirect(url_for('index'))
+    
+            # Insert participant
+            cursor.execute(
+                "INSERT INTO game_participants (session_id, nickname) VALUES (%s, %s)",
+                (game_session['session_id'], nickname)
+            )
+            conn.commit()
+            participant_id = cursor.lastrowid
 
         # Save participant ID to Flask session
         session['participant_id'] = participant_id
@@ -836,33 +983,26 @@ def join_game():
 def host_game_control(session_code):
     """Host game control screen — shows questions and controls during live play."""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        # Verify session exists and belongs to this host
-        cursor.execute(
-            "SELECT gs.*, q.title as quiz_title FROM game_sessions gs "
-            "JOIN quizzes q ON gs.quiz_id = q.quiz_id "
-            "WHERE gs.session_code = %s AND gs.host_id = %s",
-            (session_code, current_user.id)
-        )
-        game_session = cursor.fetchone()
-
-        if not game_session:
-            flash('Session not found or you are not the host.', 'danger')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('dashboard'))
-
-        # Get all questions for this quiz
-        cursor.execute(
-            "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC",
-            (game_session['quiz_id'],)
-        )
-        questions = cursor.fetchall()
-
-        cursor.close()
-        conn.close()
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            # Verify session exists and belongs to this host
+            cursor.execute(
+                "SELECT gs.*, q.title as quiz_title FROM game_sessions gs "
+                "JOIN quizzes q ON gs.quiz_id = q.quiz_id "
+                "WHERE gs.session_code = %s AND gs.host_id = %s",
+                (session_code, current_user.id)
+            )
+            game_session = cursor.fetchone()
+    
+            if not game_session:
+                flash('Session not found or you are not the host.', 'danger')
+                return redirect(url_for('dashboard'))
+    
+            # Get all questions for this quiz
+            cursor.execute(
+                "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC",
+                (game_session['quiz_id'],)
+            )
+            questions = cursor.fetchall()
 
         return render_template(
             'host_game.html',
@@ -887,41 +1027,32 @@ def player_game(session_code):
         return redirect(url_for('index'))
 
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        # Verify the session exists and is active
-        cursor.execute(
-            "SELECT gs.*, q.title as quiz_title FROM game_sessions gs "
-            "JOIN quizzes q ON gs.quiz_id = q.quiz_id "
-            "WHERE gs.session_code = %s AND gs.status = 'active'",
-            (session_code,)
-        )
-        game_session = cursor.fetchone()
-
-        if not game_session:
-            flash('Game session not found or not active.', 'danger')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('index'))
-
-        # Fetch the nickname from the DB using participant_id
-        cursor.execute(
-            "SELECT nickname FROM game_participants WHERE participant_id = %s",
-            (participant_id,)
-        )
-        participant = cursor.fetchone()
-
-        if not participant:
-            flash('Participant record not found. Please rejoin the game.', 'danger')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('index'))
-
-        nickname = participant['nickname']
-
-        cursor.close()
-        conn.close()
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            # Verify the session exists and is active
+            cursor.execute(
+                "SELECT gs.*, q.title as quiz_title FROM game_sessions gs "
+                "JOIN quizzes q ON gs.quiz_id = q.quiz_id "
+                "WHERE gs.session_code = %s AND gs.status = 'active'",
+                (session_code,)
+            )
+            game_session = cursor.fetchone()
+    
+            if not game_session:
+                flash('Game session not found or not active.', 'danger')
+                return redirect(url_for('index'))
+    
+            # Fetch the nickname from the DB using participant_id
+            cursor.execute(
+                "SELECT nickname FROM game_participants WHERE participant_id = %s",
+                (participant_id,)
+            )
+            participant = cursor.fetchone()
+    
+            if not participant:
+                flash('Participant record not found. Please rejoin the game.', 'danger')
+                return redirect(url_for('index'))
+    
+            nickname = participant['nickname']
 
         return render_template(
             'player_game.html',
@@ -934,6 +1065,56 @@ def player_game(session_code):
         flash(f'Error loading game: {str(e)}', 'danger')
         return redirect(url_for('index'))
 
+
+@app.route('/results/<session_code>')
+def game_results(session_code):
+    """Displays the final results and leaderboard for a completed game session."""
+    try:
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            cursor.execute(
+                """SELECT gp.nickname, SUM(pa.points_earned) as total_score
+                   FROM game_participants gp
+                   LEFT JOIN player_answers pa ON gp.participant_id = pa.participant_id
+                   JOIN game_sessions gs ON gp.session_id = gs.session_id
+                   WHERE gs.session_code = %s
+                   GROUP BY gp.participant_id
+                   ORDER BY total_score DESC""",
+                (session_code,)
+            )
+            leaderboard = cursor.fetchall()
+            
+            # Format for template
+            for i, p in enumerate(leaderboard):
+                if p['total_score'] is None:
+                    p['total_score'] = 0
+                    
+            # Handle participant trying to view results if they were in the game
+            participant_id = session.get('participant_id')
+            player_stats = None
+            
+            if participant_id:
+                cursor.execute(
+                    """SELECT
+                        COUNT(pa.answer_id) as total_answered,
+                        SUM(CASE WHEN pa.is_correct = 1 THEN 1 ELSE 0 END) as correct_answers,
+                        SUM(pa.points_earned) as total_points
+                       FROM player_answers pa
+                       WHERE pa.participant_id = %s""",
+                    (participant_id,)
+                )
+                player_stats = cursor.fetchone()
+                
+                # find player rank
+                for idx, p in enumerate(leaderboard):
+                    if p['nickname'] == session.get('nickname'):
+                        player_stats['rank'] = idx + 1
+                        player_stats['nickname'] = p['nickname']
+                        break
+    
+        return render_template('results.html', leaderboard=leaderboard, player_stats=player_stats, session_code=session_code)
+    except Exception as e:
+        flash(f'Error getting results: {str(e)}', 'danger')
+        return redirect(url_for('index'))        
 
 
 # =============================================
@@ -976,29 +1157,24 @@ def handle_disconnect():
         return
 
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        # Only remove the participant if the game is still in 'waiting' status
-        cursor.execute(
-            "SELECT gs.session_id FROM game_sessions gs "
-            "WHERE gs.session_code = %s AND gs.status = 'waiting'",
-            (session_code,)
-        )
-        game_session = cursor.fetchone()
-
-        if game_session:
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            # Only remove the participant if the game is still in 'waiting' status
             cursor.execute(
-                "DELETE FROM game_participants "
-                "WHERE session_id = %s AND nickname = %s",
-                (game_session['session_id'], nickname)
+                "SELECT gs.session_id FROM game_sessions gs "
+                "WHERE gs.session_code = %s AND gs.status = 'waiting'",
+                (session_code,)
             )
-            conn.commit()
-            # Tell the host to refresh the player list
-            emit('player_joined', {'nickname': None}, room=session_code)
-
-        cursor.close()
-        conn.close()
+            game_session = cursor.fetchone()
+    
+            if game_session:
+                cursor.execute(
+                    "DELETE FROM game_participants "
+                    "WHERE session_id = %s AND nickname = %s",
+                    (game_session['session_id'], nickname)
+                )
+                conn.commit()
+                # Tell the host to refresh the player list
+                emit('player_joined', {'nickname': None}, room=session_code)
     except Exception:
         pass
 
@@ -1010,21 +1186,15 @@ def handle_request_players(data):
 
     if session_code:
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor(dictionary=True)
-
-            cursor.execute(
-                """SELECT gp.nickname
-                   FROM game_participants gp
-                   JOIN game_sessions gs ON gp.session_id = gs.session_id
-                   WHERE gs.session_code = %s""",
-                (session_code,)
-            )
-            participants = cursor.fetchall()
-
-            cursor.close()
-            conn.close()
-
+            with get_db_cursor(dictionary=True) as (conn, cursor):
+                cursor.execute(
+                    """SELECT gp.nickname
+                       FROM game_participants gp
+                       JOIN game_sessions gs ON gp.session_id = gs.session_id
+                       WHERE gs.session_code = %s""",
+                    (session_code,)
+                )
+                participants = cursor.fetchall()
             emit('update_players', {'players': participants})
         except Exception as e:
             emit('error', {'message': str(e)})
@@ -1040,33 +1210,26 @@ def handle_start_game(data):
         return
 
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            # Update game session status to active
+            cursor.execute(
+                "UPDATE game_sessions SET status = 'active', started_at = NOW(), current_question = 1 "
+                "WHERE session_code = %s AND status = 'waiting'",
+                (session_code,)
+            )
+            conn.commit()
 
-        # Update game session status to active
-        cursor.execute(
-            "UPDATE game_sessions SET status = 'active', started_at = NOW(), current_question = 1 "
-            "WHERE session_code = %s AND status = 'waiting'",
-            (session_code,)
-        )
-        conn.commit()
+            if cursor.rowcount == 0:
+                emit('error', {'message': 'Session not found or already started.'})
+                return
 
-        if cursor.rowcount == 0:
-            cursor.close()
-            conn.close()
-            emit('error', {'message': 'Session not found or already started.'})
-            return
-
-        # Initialize in-memory game state
-        active_games[session_code] = {
-            'streak_enabled': streak_enabled,
-            'question_start_time': None,
-            'answers_received': 0,
-            'answer_counts': {}
-        }
-
-        cursor.close()
-        conn.close()
+            # Initialize in-memory game state
+            active_games[session_code] = {
+                'streak_enabled': streak_enabled,
+                'question_start_time': None,
+                'answers_received': 0,
+                'answer_counts': {}
+            }
 
         # Notify all players in the room that the game has started
         emit('game_started', {
@@ -1087,102 +1250,92 @@ def handle_next_question(data):
         return
 
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        # Get current session state
-        cursor.execute(
-            "SELECT * FROM game_sessions WHERE session_code = %s AND status = 'active'",
-            (session_code,)
-        )
-        game_session = cursor.fetchone()
-
-        if not game_session:
-            cursor.close()
-            conn.close()
-            emit('error', {'message': 'Active session not found.'})
-            return
-
-        current_q_num = game_session['current_question']
-
-        # Fetch the question at the current position
-        cursor.execute(
-            "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC "
-            "LIMIT 1 OFFSET %s",
-            (game_session['quiz_id'], current_q_num - 1)
-        )
-        question = cursor.fetchone()
-
-        if not question:
-            # No more questions — game is over
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            # Get current session state
             cursor.execute(
-                "UPDATE game_sessions SET status = 'completed', ended_at = NOW() "
-                "WHERE session_code = %s",
+                "SELECT * FROM game_sessions WHERE session_code = %s AND status = 'active'",
                 (session_code,)
             )
-            conn.commit()
+            game_session = cursor.fetchone()
 
-            # Fetch final leaderboard
+            if not game_session:
+                emit('error', {'message': 'Active session not found.'})
+                return
+
+            current_q_num = game_session['current_question']
+
+            # Fetch the question at the current position
             cursor.execute(
-                "SELECT nickname, score, streak FROM game_participants "
-                "WHERE session_id = %s ORDER BY score DESC",
+                "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC "
+                "LIMIT 1 OFFSET %s",
+                (game_session['quiz_id'], current_q_num - 1)
+            )
+            question = cursor.fetchone()
+
+            if not question:
+                # No more questions — game is over
+                cursor.execute(
+                    "UPDATE game_sessions SET status = 'completed', ended_at = NOW() "
+                    "WHERE session_code = %s",
+                    (session_code,)
+                )
+                conn.commit()
+
+                # Fetch final leaderboard
+                cursor.execute(
+                    "SELECT nickname, score, streak FROM game_participants "
+                    "WHERE session_id = %s ORDER BY score DESC",
+                    (game_session['session_id'],)
+                )
+                leaderboard = cursor.fetchall()
+
+                # Clean up in-memory state
+                active_games.pop(session_code, None)
+
+                emit('game_over', {'session_code': session_code, 'leaderboard': leaderboard}, room=session_code)
+                return
+
+            # Get total question count for progress display
+            cursor.execute(
+                "SELECT COUNT(*) as total FROM questions WHERE quiz_id = %s",
+                (game_session['quiz_id'],)
+            )
+            total_questions = cursor.fetchone()['total']
+
+            # Get participant count for auto-end tracking
+            cursor.execute(
+                "SELECT COUNT(*) as count FROM game_participants WHERE session_id = %s",
                 (game_session['session_id'],)
             )
-            leaderboard = cursor.fetchall()
+            player_count = cursor.fetchone()['count']
 
-            cursor.close()
-            conn.close()
+            # Record start time in memory for scoring
+            # Add 3 seconds to offset the intro animation shown on the frontend
+            if session_code in active_games:
+                active_games[session_code]['question_start_time'] = time.time() + 3
+                active_games[session_code]['answers_received'] = 0
+                active_games[session_code]['answer_counts'] = {}
+                active_games[session_code]['player_count'] = player_count
+                active_games[session_code]['current_question_id'] = question['question_id']
+                active_games[session_code]['current_correct_answer'] = question['correct_answer']
 
-            # Clean up in-memory state
-            active_games.pop(session_code, None)
+            # Build question data to send (WITHOUT the correct answer)
+            question_data = {
+                'question_id': question['question_id'],
+                'question_text': question['question_text'],
+                'question_type': question['question_type'],
+                'option_a': question['option_a'],
+                'option_b': question['option_b'],
+                'option_c': question['option_c'],
+                'option_d': question['option_d'],
+                'points': question['points'],
+                'time_limit': question['time_limit'],
+                'question_number': current_q_num,
+                'total_questions': total_questions
+            }
 
-            emit('game_over', {'session_code': session_code, 'leaderboard': leaderboard}, room=session_code)
-            return
-
-        # Get total question count for progress display
-        cursor.execute(
-            "SELECT COUNT(*) as total FROM questions WHERE quiz_id = %s",
-            (game_session['quiz_id'],)
-        )
-        total_questions = cursor.fetchone()['total']
-
-        # Get participant count for auto-end tracking
-        cursor.execute(
-            "SELECT COUNT(*) as count FROM game_participants WHERE session_id = %s",
-            (game_session['session_id'],)
-        )
-        player_count = cursor.fetchone()['count']
-
-        cursor.close()
-        conn.close()
-
-        # Record start time in memory for scoring
-        # Add 3 seconds to offset the intro animation shown on the frontend
-        if session_code in active_games:
-            active_games[session_code]['question_start_time'] = time.time() + 3
-            active_games[session_code]['answers_received'] = 0
-            active_games[session_code]['answer_counts'] = {}
-            active_games[session_code]['player_count'] = player_count
-            active_games[session_code]['current_question_id'] = question['question_id']
-            active_games[session_code]['current_correct_answer'] = question['correct_answer']
-
-        # Build question data to send (WITHOUT the correct answer)
-        question_data = {
-            'question_id': question['question_id'],
-            'question_text': question['question_text'],
-            'question_type': question['question_type'],
-            'option_a': question['option_a'],
-            'option_b': question['option_b'],
-            'option_c': question['option_c'],
-            'option_d': question['option_d'],
-            'points': question['points'],
-            'time_limit': question['time_limit'],
-            'question_number': current_q_num,
-            'total_questions': total_questions
-        }
-
-        # Broadcast question to all players and the host
-        emit('new_question', question_data, room=session_code)
+            # Broadcast question to all players and the host
+            emit('new_question', question_data, room=session_code)
 
     except Exception as e:
         emit('error', {'message': str(e)})
@@ -1200,89 +1353,80 @@ def handle_submit_answer(data):
         return
 
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        # Fetch the correct answer and points for this question
-        cursor.execute(
-            "SELECT correct_answer, points, time_limit FROM questions WHERE question_id = %s",
-            (question_id,)
-        )
-        question = cursor.fetchone()
-
-        if not question:
-            cursor.close()
-            conn.close()
-            return
-
-        # Determine correctness (case-insensitive comparison)
-        is_correct = False
-        if answer_given:
-            is_correct = answer_given.strip().lower() == question['correct_answer'].strip().lower()
-
-        # Calculate time-based proportional score
-        # Formula: floor((1 - ((response_time / time_limit) / 2)) * points)
-        points_earned = 0
-        game_state = active_games.get(session_code, {})
-        question_start = game_state.get('question_start_time', time.time())
-        response_time = time.time() - question_start
-        time_limit = question['time_limit']
-
-        if is_correct:
-            time_ratio = min(response_time / time_limit, 1.0)  # Cap at 1.0
-            points_earned = math.floor((1 - (time_ratio / 2)) * question['points'])
-            points_earned = max(points_earned, 1)  # Minimum 1 point if correct
-
-        # Handle streak logic
-        streak_bonus = 0
-        streak_enabled = game_state.get('streak_enabled', False)
-
-        # Get current streak from database
-        cursor.execute(
-            "SELECT score, streak FROM game_participants WHERE participant_id = %s",
-            (participant_id,)
-        )
-        participant = cursor.fetchone()
-
-        if not participant:
-            cursor.close()
-            conn.close()
-            return
-
-        current_streak = participant['streak']
-
-        if is_correct:
-            new_streak = current_streak + 1
-            if streak_enabled:
-                # Streak bonus: +10% of question points per streak, capped at +50%
-                streak_bonus = min(new_streak, 5) * int(question['points'] * 0.10)
-        else:
-            new_streak = 0  # Reset streak on incorrect answer
-
-        total_points = points_earned + streak_bonus
-
-        # Record the answer in player_answers
-        cursor.execute(
-            "INSERT INTO player_answers (participant_id, question_id, answer_given, is_correct, points_earned) "
-            "VALUES (%s, %s, %s, %s, %s)",
-            (participant_id, question_id, answer_given, is_correct, total_points)
-        )
-
-        # Update answer counts
-        if session_code in active_games:
-            ans_key = (answer_given or '').strip()
-            active_games[session_code]['answer_counts'][ans_key] = active_games[session_code]['answer_counts'].get(ans_key, 0) + 1
-
-        # Update participant score and streak
-        cursor.execute(
-            "UPDATE game_participants SET score = score + %s, streak = %s WHERE participant_id = %s",
-            (total_points, new_streak, participant_id)
-        )
-        conn.commit()
-
-        cursor.close()
-        conn.close()
-
+        with get_db_cursor(dictionary=True) as (conn, cursor):
+            # Fetch the correct answer and points for this question
+            cursor.execute(
+                "SELECT correct_answer, points, time_limit FROM questions WHERE question_id = %s",
+                (question_id,)
+            )
+            question = cursor.fetchone()
+    
+            if not question:
+                return
+    
+            # Determine correctness (case-insensitive comparison)
+            is_correct = False
+            if answer_given:
+                is_correct = answer_given.strip().lower() == question['correct_answer'].strip().lower()
+    
+            # Calculate time-based proportional score
+            # Formula: floor((1 - ((response_time / time_limit) / 2)) * points)
+            points_earned = 0
+            game_state = active_games.get(session_code, {})
+            question_start = game_state.get('question_start_time', time.time())
+            response_time = time.time() - question_start
+            time_limit = question['time_limit']
+    
+            if is_correct:
+                time_ratio = min(response_time / time_limit, 1.0)  # Cap at 1.0
+                points_earned = math.floor((1 - (time_ratio / 2)) * question['points'])
+                points_earned = max(points_earned, 1)  # Minimum 1 point if correct
+    
+            # Handle streak logic
+            streak_bonus = 0
+            streak_enabled = game_state.get('streak_enabled', False)
+    
+            # Get current streak from database
+            cursor.execute(
+                "SELECT score, streak FROM game_participants WHERE participant_id = %s",
+                (participant_id,)
+            )
+            participant = cursor.fetchone()
+    
+            if not participant:
+                return
+    
+            current_streak = participant['streak']
+    
+            if is_correct:
+                new_streak = current_streak + 1
+                if streak_enabled and new_streak > 1:
+                    # Streak bonus: +100 points for each consecutive correct answer after the first, capped at 500
+                    streak_bonus = min(new_streak - 1, 5) * 100
+            else:
+                new_streak = 0  # Reset streak on incorrect answer
+    
+            total_points = points_earned + streak_bonus
+    
+            # Record the answer in player_answers
+            cursor.execute(
+                "INSERT INTO player_answers (participant_id, question_id, answer_given, is_correct, points_earned) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (participant_id, question_id, answer_given, is_correct, total_points)
+            )
+    
+            # Update answer counts
+            if session_code in active_games:
+                ans_key = (answer_given or '').strip()
+                active_games[session_code]['answer_counts'][ans_key] = active_games[session_code]['answer_counts'].get(ans_key, 0) + 1
+    
+            # Update participant score and streak
+            cursor.execute(
+                "UPDATE game_participants SET score = score + %s, streak = %s WHERE participant_id = %s",
+                (total_points, new_streak, participant_id)
+            )
+            conn.commit()
+    
         # Send feedback to the player who submitted
         emit('answer_result', {
             'is_correct': is_correct,
@@ -1291,7 +1435,7 @@ def handle_submit_answer(data):
             'streak_bonus': streak_bonus,
             'correct_answer': question['correct_answer']
         })
-
+    
         # Notify host that a player answered
         emit('player_answered', {
             'participant_id': participant_id,
@@ -1307,32 +1451,26 @@ def handle_submit_answer(data):
             if answered >= total_players:
                 # Advance the current_question counter in the database
                 try:
-                    conn2 = get_db_connection()
-                    cursor2 = conn2.cursor()
-                    cursor2.execute(
-                        "UPDATE game_sessions SET current_question = current_question + 1 "
-                        "WHERE session_code = %s",
-                        (session_code,)
-                    )
-                    conn2.commit()
-                    cursor2.close()
-                    conn2.close()
+                    with get_db_cursor() as (conn2, cursor2):
+                        cursor2.execute(
+                            "UPDATE game_sessions SET current_question = current_question + 1 "
+                            "WHERE session_code = %s",
+                            (session_code,)
+                        )
+                        conn2.commit()
                 except Exception:
                     pass
 
                 # Fetch leaderboard
                 leaderboard = []
                 try:
-                    conn3 = get_db_connection()
-                    cursor3 = conn3.cursor(dictionary=True)
-                    cursor3.execute(
-                        "SELECT nickname, score, streak FROM game_participants "
-                        "WHERE session_id = (SELECT session_id FROM game_sessions WHERE session_code = %s) "
-                        "ORDER BY score DESC", (session_code,)
-                    )
-                    leaderboard = cursor3.fetchall()
-                    cursor3.close()
-                    conn3.close()
+                    with get_db_cursor(dictionary=True) as (conn3, cursor3):
+                        cursor3.execute(
+                            "SELECT nickname, score, streak FROM game_participants "
+                            "WHERE session_id = (SELECT session_id FROM game_sessions WHERE session_code = %s) "
+                            "ORDER BY score DESC", (session_code,)
+                        )
+                        leaderboard = cursor3.fetchall()
                 except Exception:
                     pass
 
@@ -1361,32 +1499,26 @@ def handle_force_end_round(data):
     # Handle advancing the question if no answers were received
     if answers_received == 0:
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                "UPDATE game_sessions SET current_question = current_question + 1 "
-                "WHERE session_code = %s",
-                (session_code,)
-            )
-            conn.commit()
-            cursor.close()
-            conn.close()
+            with get_db_cursor() as (conn, cursor):
+                cursor.execute(
+                    "UPDATE game_sessions SET current_question = current_question + 1 "
+                    "WHERE session_code = %s",
+                    (session_code,)
+                )
+                conn.commit()
         except Exception:
             pass
 
     # Fetch leaderboard
     leaderboard = []
     try:
-        conn_lb = get_db_connection()
-        cursor_lb = conn_lb.cursor(dictionary=True)
-        cursor_lb.execute(
-            "SELECT nickname, score, streak FROM game_participants "
-            "WHERE session_id = (SELECT session_id FROM game_sessions WHERE session_code = %s) "
-            "ORDER BY score DESC", (session_code,)
-        )
-        leaderboard = cursor_lb.fetchall()
-        cursor_lb.close()
-        conn_lb.close()
+        with get_db_cursor(dictionary=True) as (conn_lb, cursor_lb):
+            cursor_lb.execute(
+                "SELECT nickname, score, streak FROM game_participants "
+                "WHERE session_id = (SELECT session_id FROM game_sessions WHERE session_code = %s) "
+                "ORDER BY score DESC", (session_code,)
+            )
+            leaderboard = cursor_lb.fetchall()
     except Exception:
         pass
 
