@@ -34,8 +34,8 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 - **Link Sharing**: Public quizzes can be freely shared and played without login
 - **Solo Mode**: Interactive UI for players to practice or authors to test their quizzes
 - **Rich Editor**: Easy-to-use interface for adding and editing questions
-- **Advanced (Upcoming)**: Independent study Flashcards view
-- **Advanced (Upcoming)**: AI-Assisted rapid quiz creation from study notes
+- **Advanced**: Independent study Flashcards view
+- **Advanced**: AI-Assisted rapid quiz creation from study notes and uploaded PDF/TXT Documents
 
 ### 🎮 Live Game Sessions
 - **Room-based Play**: Users join a lobby via room code and wait for the host to start.
@@ -63,9 +63,16 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 - ✅ Anonymous Link Sharing & Solo Practice Mode implemented
 - ✅ Game Session & Participant Lobby Foundation established
 - ✅ Live Game Play Flow (Host controls, real-time question display, answer submissions)
-- ✅ High-Precision Proportional Scoring & Scaling Streak Bonus system implemented
 - ✅ Live Leaderboards, Answer Distribution Charts, and Result Podiums established
-- ✅ 60fps JavaScript Timer Synchronization implemented
+- ✅ AI-Assisted Quiz Generation via Google Gemini implemented (with PDF & TXT Document Uploads)
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed and set up on your machine:
+
+- **Python 3.10+**: Required to run the Flask backend and related dependencies.
+- **MySQL Server**: Required for the application's database. Ensure the MySQL service is running.
+- **Google Gemini API Key**: Needed to use the AI-Assisted quiz generation feature (can be obtained for free from Google AI Studio).
 
 ## Setup Instructions
 
@@ -76,8 +83,10 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
    - Windows: `.venv\Scripts\activate`
    - Mac/Linux: `source .venv/bin/activate`
 5. Install project dependencies: `pip install -r requirements.txt`
-6. Create database: `CREATE DATABASE quiz_platform;`
-7. Ensure your MySQL credentials are correct in `src/config/config.py`
+6. Create the database and tables:
+   - Create the empty database: `CREATE DATABASE quiz_platform;`
+   - Execute all the SQL `CREATE TABLE` scripts found in `docs/database_schema.md` to initialize your database.
+7. Create a `.env` file from the example (`cp .env.example .env`) and add your database credentials and Gemini API key.
 8. Start the application: `python src/app.py`
 9. Visit: `http://127.0.0.1:5000`
 
