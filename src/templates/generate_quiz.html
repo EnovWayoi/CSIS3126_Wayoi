@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Generate Quiz with AI - Quiz Platform{% endblock %}
+
+{% block content %}
+<div class="flex justify-center mt-8 mb-20 relative z-0">
+    <div class="w-full max-w-2xl">
+        <div class="bg-neo-pink neo-card p-0 overflow-hidden relative">
+            <h2 class="text-3xl font-black text-center py-6 border-b-4 border-black bg-white">✨ Generate Quiz with AI</h2>
+
+            <!-- Tabs -->
+            <div class="flex border-b-4 border-black font-bold text-lg">
+                <button type="button" id="tab-topic" class="flex-1 py-4 text-center bg-black text-white transition-colors" onclick="switchTab('topic')">
+                    📝 By Topic
+                </button>
+                <button type="button" id="tab-document" class="flex-1 py-4 text-center bg-white text-black hover:bg-gray-100 transition-colors border-l-4 border-black" onclick="switchTab('document')">
+                    📄 By Document
+                </button>
+            </div>
+
+            <form method="POST" action="{{ url_for('generate_quiz') }}" id="generate-form" class="flex flex-col gap-6 p-8" enctype="multipart/form-data">
+                <input type="hidden" name="mode" id="mode" value="topic">
+
+                <!-- Topic Mode Fields -->
+                <div id="topic-fields" class="flex flex-col gap-6">
+                    <div>
+                        <label for="topic" class="block font-bold mb-2">Topic <span class="text-red-600">*</span></label>
+                        <input type="text" class="neo-input bg-white w-full" id="topic" name="topic" placeholder="e.g. History of Rome, Python Decorators, Biology 101" maxlength="100">
+                    </div>
+
+                    <div>
+                        <label for="notes" class="block font-bold mb-2">Study Notes (Optional)</label>
+                        <textarea class="neo-input bg-white w-full" id="notes" name="notes" rows="6" placeholder="Paste any specific notes or text you want the AI to base the quiz on."></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="num_questions" class="block font-bold mb-2">Number of Questions</label>
+                            <select class="neo-input bg-white w-full cursor-pointer" id="num_questions" name="num_questions">
+                                <option value="3">3 Questions</option>
+                                <option value="5" selected>5 Questions</option>
+                                <option value="10">10 Questions</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="difficulty" class="block font-bold mb-2">Difficulty</label>
+                            <select class="neo-input bg-white w-full cursor-pointer" id="difficulty" name="difficulty">
+                                <option value="easy">Easy</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Document Mode Fields (Hidden by default) -->
+                <div id="document-fields" class="hidden flex-col gap-6">
+                    <div>
+                        <label for="doc_title" class="block font-bold mb-2">Quiz Title <span class="text-red-600">*</span></label>
+                        <input type="text" class="neo-input bg-white w-full" id="doc_title" name="doc_title" placeholder="e.g. Midterm Review, Client Presentation" maxlength="100">
+                        <p class="text-sm font-semibold opacity-70 mt-1">This will be the title of your generated quiz.</p>
+                    </div>
+
+                    <div>
+                        <label for="document" class="block font-bold mb-2">Upload Document <span class="text-red-600">*</span></label>
+                        <div class="flex items-center gap-3">
+                            <label for="document" class="neo-btn bg-white text-black px-4 py-2 hover:bg-gray-100 cursor-pointer inline-block text-sm border-2 border-black font-bold shadow-neo-sm">
+                                Choose File
+                            </label>
+                            <input type="file" id="document" name="document" accept=".pdf,.txt" class="sr-only" onchange="window.document.getElementById('file-name').textContent = this.files[0] ? this.files[0].name : 'No file chosen'">
+                            <span id="file-name" class="font-semibold text-gray-700 overflow-hidden text-ellipsis whitespace-nowrap max-w-[200px] sm:max-w-[300px]">No file chosen</span>
+                        </div>
+                        <p class="text-sm font-semibold opacity-70 mt-2">
+                            Supported formats: PDF, TXT. The AI will automatically determine the best length and difficulty for this material.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Shared Fields -->
+                <div class="bg-white border-2 border-black rounded p-4 shadow-neo-sm flex items-start gap-3 mt-2">
+                    <input class="w-6 h-6 border-2 border-black rounded accent-neo-blue" type="checkbox" id="is_public" name="is_public">
+                    <div>
+                        <label class="font-bold cursor-pointer select-none" for="is_public">
+                            Make this quiz public
+                        </label>
+                        <p class="text-sm font-semibold opacity-70 mt-1">
+                            Public quizzes can be seen by other users.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center mt-6 gap-4">
+                    <a href="{{ url_for('dashboard') }}" class="neo-btn bg-white text-black px-6 py-3 hover:bg-gray-100 font-bold">Cancel</a>
+                    <button type="submit" id="submit-btn" class="neo-btn bg-black text-white px-8 py-3 text-lg hover:bg-gray-800 flex items-center justify-center gap-2">
+                        <span>Generate Quiz ✨</span>
+                    </button>
+                </div>
+                
+                <div id="loading-overlay" class="hidden absolute inset-0 bg-neo-pink z-50 flex flex-col items-center justify-center rounded border-4 border-black">
+                    <div class="animate-spin text-5xl mb-4">🤖</div>
+                    <h3 class="text-2xl font-black text-center mb-2">Generating...</h3>
+                    <p id="loading-text" class="font-bold text-center px-4">The AI is thinking. This might take a few seconds.</p>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function switchTab(mode) {
+        const modeInput = document.getElementById('mode');
+        const topicFields = document.getElementById('topic-fields');
+        const documentFields = document.getElementById('document-fields');
+        const tabTopic = document.getElementById('tab-topic');
+        const tabDocument = document.getElementById('tab-document');
+        
+        const inputTopic = document.getElementById('topic');
+        const inputDocTitle = document.getElementById('doc_title');
+        const inputDocument = document.getElementById('document');
+
+        modeInput.value = mode;
+
+        if (mode === 'topic') {
+            // UI Switch
+            topicFields.classList.remove('hidden');
+            topicFields.classList.add('flex');
+            documentFields.classList.remove('flex');
+            documentFields.classList.add('hidden');
+            
+            // Tab styling
+            tabTopic.classList.add('bg-black', 'text-white');
+            tabTopic.classList.remove('bg-white', 'text-black', 'hover:bg-gray-100');
+            tabDocument.classList.add('bg-white', 'text-black', 'hover:bg-gray-100');
+            tabDocument.classList.remove('bg-black', 'text-white');
+
+            // Form validation attributes
+            inputTopic.required = true;
+            inputDocTitle.required = false;
+            inputDocument.required = false;
+
+        } else if (mode === 'document') {
+            // UI Switch
+            documentFields.classList.remove('hidden');
+            documentFields.classList.add('flex');
+            topicFields.classList.remove('flex');
+            topicFields.classList.add('hidden');
+            
+            // Tab styling
+            tabDocument.classList.add('bg-black', 'text-white');
+            tabDocument.classList.remove('bg-white', 'text-black', 'hover:bg-gray-100');
+            tabTopic.classList.add('bg-white', 'text-black', 'hover:bg-gray-100');
+            tabTopic.classList.remove('bg-black', 'text-white');
+
+            // Form validation attributes
+            inputTopic.required = false;
+            inputDocTitle.required = true;
+            inputDocument.required = true;
+        }
+    }
+
+    // Initialize required attributes on load
+    document.addEventListener('DOMContentLoaded', () => {
+        switchTab('topic'); 
+    });
+
+    document.getElementById('generate-form').addEventListener('submit', function() {
+        document.getElementById('loading-overlay').classList.remove('hidden');
+        document.getElementById('submit-btn').disabled = true;
+        
+        // Update loading text if in document mode
+        if (document.getElementById('mode').value === 'document') {
+            document.getElementById('loading-text').innerText = 'Uploading document and generating quiz... This may take a minute for larger files.';
+        }
+    });
+</script>
+{% endblock %}
