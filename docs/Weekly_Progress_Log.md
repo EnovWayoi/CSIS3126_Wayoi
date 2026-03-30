@@ -321,7 +321,7 @@ None.
 - ✅ Points calculation: `⌊(1 - (({response time} / {question timer}) / 2)) * {points possible}⌉`
 - ✅ Host toggle for optional streak bonus
 - ✅ Answer streak tracking and reset on incorrect
-- ✅ Streak bonus points calculation (caps at +5 pts)
+- ✅ Streak bonus points calculation (+100 pts per streak level, caps at +500 pts)
 - ✅ Player scores and streaks updated in database
 - ✅ Host controls to advance all players to the next question
 
@@ -376,23 +376,28 @@ Successfully implemented real-time leaderboard and answer distribution features.
 ## Week 12
 
 ### Work Completed
-- [ ] Advanced Feature: Independent study Flashcards view
-- [ ] Advanced Feature: AI-Assisted quiz generation from topic/notes
-- [ ] Tutorial for first-time users
-- [ ] Mobile responsiveness improved
-- [ ] Accessibility improvements
+- ✅ Advanced Feature: Independent study Flashcards view
+- ✅ Advanced Feature: AI-Assisted quiz generation from topic/notes
+- ✅ Advanced Feature: AI-Assisted quiz generation from uploaded documents (PDF, TXT)
+- ✅ Tutorial for first-time users
+- ✅ Mobile responsiveness improved
+- ✅ Accessibility improvements
 
 ### Progress Summary
-[To be filled in]
+Successfully implemented the final set of advanced features and polish for the platform. Added a dedicated "Flashcards" study mode that allows users to independently review quizzes with interactive, 3D-flipping cards and keyboard navigation. Enhanced the AI generation tool to natively support document uploads (PDF, TXT) via the Gemini Files API, allowing instantaneous quiz creation directly from course materials without manual formatting. Implemented a first-time user tutorial by dynamically displaying the global Help modal upon a user's first visit to the dashboard, smartly tracked via local storage to avoid redundant pop-ups. Conducted a sweep of mobile responsiveness, ensuring all navigation and action buttons nicely wrap and scale on small screens. Improved accessibility by adding ARIA labels, focus states, and keyboard event listeners for all interactive components.
 
 ### Impediments/Challenges
-[To be filled in]
+- Handling the 3D CSS transform for the flashcards across different browsers and ensuring the content behind the card remained hidden until flipped.
+- securely processing multi-part form data uploads for documents and integrating them seamlessly with the Google GenAI Files API without introducing server storage leaks.
+- Deciding on a non-intrusive way to present the first-time tutorial without modifying the user database schema, successfully resolving it through browser local storage.
 
 ### Changes to Plan
-[To be filled in]
+- Avoided duplicating tutorial content by leveraging the existing Help Modal as the first-time user tutorial, automatically populating it with the latest feature guides (Flashcards and AI Generation) and showing it for new users.
 
 ### Next Week Goals
-[To be filled in]
+- Checkpoint 2: Demonstration of testing
+- Conduct extensive unit testing for game session logic
+- Perform manual integration testing with concurrent players
 
 ---
 
