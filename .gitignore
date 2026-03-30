@@ -11,6 +11,5 @@ env/
 .DS_Store
 .env
 .env.local
-config/config.py
 *.log
 .ipynb_checkpoints/
