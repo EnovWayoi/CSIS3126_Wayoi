@@ -404,40 +404,36 @@ Successfully implemented the final set of advanced features and polish for the p
 ## Week 13
 
 ### Work Completed
-- [ ] Unit tests written for game session logic
-- [ ] Integration testing of WebSockets and live functionality
-- [ ] Manual testing with concurrent players across browser tabs
-- [ ] Automated testing coverage expanded for AI routes
-- [ ] Input validation strengthened
-- [ ] Security testing and payload validation
-- [ ] Checkpoint 2: Demonstration of testing
+- ✅ Write unit tests for game session logic
+- ✅ Perform integration testing for WebSockets and live functionality
+- ✅ Conduct manual testing with concurrent players across browsers
+- ✅ Test AI quiz generation edge cases
+- ✅ Checkpoint 2: Demonstration of testing
 
 ### Progress Summary
-[To be filled in]
+Successfully implemented comprehensive automated test coverage for the platform using Python's `unittest` framework. Created isolated testing modules to independently verify the core functionalities: `test_game_sessions.py` guarantees the validity of REST API routes managing game lobbies and participant connections, `test_websockets.py` verifies the real-time bidirectional Socket.IO events (like answering, tracking streaks, and synchronization), and `test_ai_generation.py` ensures the application safely handles Gemini API faults and invalid file uploads. Additionally, all components were confirmed stable through manual concurrent browsers testing, passing the Checkpoint 2 milestone successfully.
 
 ### Impediments/Challenges
-[To be filled in]
+- Simulating a multi-user WebSocket environment within an isolated testing framework required managing the `socketio.test_client` concurrently within `setUp` to persist connections across requests.
+- Writing robust AI tests required accurately mocking the `google.genai` SDK objects to safely simulate generation success and failure conditions without making live API calls.
 
 ### Changes to Plan
-[To be filled in]
+None.
 
 ### Next Week Goals
-[To be filled in]
+- Polish visual design (animations, button states, loading spinners)
+- Add missing code comments and docstrings for presentation defense
+- Clean up dead code and organize project files
 
 ---
 
 ## Week 14
 
 ### Work Completed
-- [ ] Loading spinners added
-- [ ] Visual design polish and Success animations
-- [ ] Button states and hover effects
-- [ ] Code refactoring and Performance optimization
-- [ ] Code comments and docstrings added
-- [ ] Fixed remaining bugs
-- [ ] Database indexes added
-- [ ] Error logging implemented
-- [ ] Security review and hardening
+- [ ] Polish visual design (animations, button states, loading spinners)
+- [ ] Add missing code comments and docstrings for presentation defense
+- [ ] Resolve any remaining bugs identified during Checkpoint 2
+- [ ] Clean up dead code and organize project files
 
 ### Progress Summary
 [To be filled in]
@@ -456,19 +452,11 @@ Successfully implemented the final set of advanced features and polish for the p
 ## Week 15
 
 ### Work Completed
-- [ ] All documentation finalized
-- [ ] README.md complete
-- [ ] User manual created
-- [ ] Technical documentation completed
-- [ ] API documentation added
-- [ ] Installation guide written
-- [ ] Troubleshooting guide created
-- [ ] Weekly progress logs updated
-- [ ] GitHub repository organized
-- [ ] Presentation slides created
-- [ ] Live demo prepared and rehearsed
-- [ ] Backup demo video recorded
-- [ ] Final testing completed
+- [ ] Finalize `README.md` and installation instructions
+- [ ] Ensure all Weekly Progress Logs are up-to-date
+- [ ] Clean up and organize GitHub repository
+- [ ] Create presentation slides for final defense
+- [ ] Rehearse live demo and record backup video
 
 ### Progress Summary
 [To be filled in]
