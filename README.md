@@ -35,14 +35,18 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 - **Solo Mode**: Interactive UI for players to practice or authors to test their quizzes
 - **Rich Editor**: Easy-to-use interface for adding and editing questions
 - **Advanced**: Independent study Flashcards view
-- **Advanced**: AI-Assisted rapid quiz creation from study notes and uploaded PDF/TXT Documents
+
+### 🤖 AI-Assisted Quiz Generation
+- **Topic Generation**: Automatically generate full quizzes by simply entering a topic and configuring difficulty/length.
+- **Document Analysis**: Upload course materials (PDF or TXT) and let the AI extract context and formulate relevant questions directly from the text.
+- **Mix Question Types**: AI automatically determines the best mix of Multiple Choice, True/False, and Fill-in-the-Blank based on context.
 
 ### 🎮 Live Game Sessions
 - **Room-based Play**: Users join a lobby via room code and wait for the host to start.
 - **Real-time Socket.IO**: Live gameplay is driven by WebSocket connections to ensure minimal latency for answers and question transitions.
 - **Dynamic Time Limits**: Questions have distinct default timers based on type (MC: 20s, T/F: 15s, Fill-in-Blank: 25s).
 - **Proportional Scoring**: Points are rewarded based on exact millisecond response speed: `⌊(1 - (({response time} / {question timer}) / 2)) * {points possible}⌉`. By default, questions are worth 1000 points.
-- **Streak Bonus**: Consecutive correct answers grant a stacking +10% bonus of the question's base points (capped at +500 at a streak of 5).
+- **Streak Bonus**: Consecutive correct answers grant a stacking +100 bonus points (capped at +500 at a streak of 5).
 - **Smooth Real-Time Timers**: 60fps monitor-synced timers utilizing requestAnimationFrame for maximum visual precision across Solo and Live modes.
 - **Live Leaderboards**: Post-round host UI displays answer distributions, and player UIs show their live score gaps, ultimately ending with a dynamic podium.
 - **Host Controls**: Hosts control the pace of the game, manually advancing questions while tracking how many players have answered.
