@@ -95,9 +95,12 @@
     <!-- Waiting Between Rounds View -->
     <div id="between-rounds-view" class="hidden flex-col flex-1 items-center justify-center text-center">
         <div class="bg-neo-blue neo-card p-8 md:p-12 max-w-2xl w-full">
-            <h2 id="feedback-rank" class="text-3xl md:text-5xl font-black mb-2 animate-bounce text-white title-shadow"></h2>
-            <p id="feedback-gap" class="text-xl font-bold bg-white text-black inline-block px-4 py-2 border-4 border-black mb-6 transform rotate-1 shadow-neo-sm"></p>
-            
+            <h2 id="feedback-rank" class="text-3xl md:text-5xl font-black mb-2 animate-bounce text-white title-shadow">
+            </h2>
+            <p id="feedback-gap"
+                class="text-xl font-bold bg-white text-black inline-block px-4 py-2 border-4 border-black mb-6 transform rotate-1 shadow-neo-sm">
+            </p>
+
             <p class="text-lg font-bold text-gray-800">Waiting for the host to show the next question...</p>
         </div>
     </div>
@@ -159,17 +162,37 @@
     }
 
     @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-        100% { transform: scale(1); }
+        0% {
+            transform: scale(1);
+        }
+
+        50% {
+            transform: scale(1.05);
+        }
+
+        100% {
+            transform: scale(1);
+        }
     }
 
     /* Pop-out animation for the question intro screen */
     @keyframes introPopIn {
-        0% { transform: scale(0.3); opacity: 0; }
-        60% { transform: scale(1.08); opacity: 1; }
-        100% { transform: scale(1); opacity: 1; }
+        0% {
+            transform: scale(0.3);
+            opacity: 0;
+        }
+
+        60% {
+            transform: scale(1.08);
+            opacity: 1;
+        }
+
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
     }
+
     .intro-pop {
         animation: introPopIn 0.5s ease-out forwards;
     }
@@ -223,8 +246,8 @@
         // Map question_type codes to friendly labels and colors
         const typeLabels = {
             'multiple_choice': { label: '\ud83d\udcdd Multiple Choice', color: 'bg-neo-blue' },
-            'true_false':      { label: '\u2705 True or False', color: 'bg-neo-green' },
-            'fill_blank':      { label: '\u270f\ufe0f Fill in the Blank', color: 'bg-neo-yellow' }
+            'true_false': { label: '\u2705 True or False', color: 'bg-neo-green' },
+            'fill_blank': { label: '\u270f\ufe0f Fill in the Blank', color: 'bg-neo-yellow' }
         };
 
         // Connect and join room
@@ -483,16 +506,16 @@
                 if (data.leaderboard && data.leaderboard.length > 0) {
                     const myNickname = "{{ nickname }}";
                     const myIndex = data.leaderboard.findIndex(p => p.nickname === myNickname);
-                    
+
                     if (myIndex !== -1) {
                         const myRank = myIndex + 1;
                         let suffix = "th";
                         if (myRank % 10 === 1 && myRank % 100 !== 11) suffix = "st";
                         else if (myRank % 10 === 2 && myRank % 100 !== 12) suffix = "nd";
                         else if (myRank % 10 === 3 && myRank % 100 !== 13) suffix = "rd";
-                        
+
                         document.getElementById('feedback-rank').innerText = `You are in ${myRank}${suffix} place!`;
-                        
+
                         const gapEl = document.getElementById('feedback-gap');
                         if (myIndex === 0) {
                             gapEl.innerText = "You're in the lead!";
@@ -523,14 +546,14 @@
                 const myNickname = "{{ nickname }}";
                 const podiumContainer = document.getElementById('player-final-podium');
                 podiumContainer.innerHTML = '';
-                
+
                 data.leaderboard.slice(0, 3).forEach((player, index) => {
                     const div = document.createElement('div');
                     let colors = ['bg-neo-yellow', 'bg-gray-300', 'bg-orange-300'];
                     let labels = ['🥇 1st', '🥈 2nd', '🥉 3rd'];
                     let isMe = player.nickname === myNickname;
-                    
-                    div.className = `${colors[index]} border-4 border-black p-2 sm:p-4 w-full max-w-sm text-xl sm:text-2xl font-black shadow-neo transform ${index===0 ? 'scale-105 mb-2 z-10' : 'scale-100 opacity-90'} ${isMe ? 'ring-4 ring-blue-500 ring-offset-4' : ''}`;
+
+                    div.className = `${colors[index]} border-4 border-black p-2 sm:p-4 w-full max-w-sm text-xl sm:text-2xl font-black shadow-neo transform ${index === 0 ? 'scale-105 mb-2 z-10' : 'scale-100 opacity-90'} ${isMe ? 'ring-4 ring-blue-500 ring-offset-4' : ''}`;
                     div.innerHTML = `<div class="flex justify-between items-center"><span class="truncate">${labels[index]} ✨ ${player.nickname}</span> <span>${player.score}</span></div>`;
                     podiumContainer.appendChild(div);
                 });
@@ -563,7 +586,7 @@
             cancelAnimationFrame(animationFrameId);
             questionStartTime = Date.now();
             const totalDurationMs = seconds * 1000;
-            
+
             timerBar.style.transitionDuration = '0s'; // pure JS precision
             timerBar.style.width = '100%';
             timeLeftEl.innerText = seconds;
@@ -571,9 +594,9 @@
             function updateTimer() {
                 const elapsedMs = Date.now() - questionStartTime;
                 const remainingMs = Math.max(0, totalDurationMs - elapsedMs);
-                
+
                 timeLeftEl.innerText = Math.ceil(remainingMs / 1000);
-                
+
                 const pct = (remainingMs / totalDurationMs) * 100;
                 timerBar.style.width = `${pct}%`;
 
@@ -587,7 +610,7 @@
                     animationFrameId = requestAnimationFrame(updateTimer);
                 }
             }
-            
+
             animationFrameId = requestAnimationFrame(updateTimer);
         }
 
@@ -613,7 +636,7 @@
 
         // Handle disconnect
         socket.on('disconnect', function () {
-            console.log('Disconnected from server');
+            // Disconnected from server
         });
     });
 </script>
