@@ -430,22 +430,26 @@ None.
 ## Week 14
 
 ### Work Completed
-- [ ] Polish visual design (animations, button states, loading spinners)
-- [ ] Add missing code comments and docstrings for presentation defense
-- [ ] Resolve any remaining bugs identified during Checkpoint 2
-- [ ] Clean up dead code and organize project files
+- ✅ Polish visual design (animations, button states, loading spinners)
+- ✅ Clean up dead code and organize project files
+- ✅ Resolve any remaining bugs identified during Checkpoint 2
 
 ### Progress Summary
-[To be filled in]
+Successfully implemented a comprehensive polish of the platform ahead of final submission. Added global loading spinners across all form submissions to prevent double requests and clearly communicate background processing to the user. Addressed several UX bugs and removed redundant client-side console output.
 
 ### Impediments/Challenges
-[To be filled in]
+- Synchronizing form submission states without breaking existing HTTP fallback routes in HTML5.
+- Balancing visual flair using the Neo-Brutalism theme without slowing down older devices.
 
 ### Changes to Plan
-[To be filled in]
+None.
 
 ### Next Week Goals
-[To be filled in]
+- Finalize `README.md` and installation instructions
+- Ensure all Weekly Progress Logs are up-to-date
+- Clean up and organize GitHub repository
+- Create presentation slides for final defense
+- Rehearse live demo and record backup video
 
 ---
 
