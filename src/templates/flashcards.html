@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}Flashcards - {{ quiz.title }}{% endblock %}
+
+{% block content %}
+<div class="mb-12 flex flex-col items-center">
+    <!-- Header -->
+    <div class="w-full max-w-3xl flex justify-between items-center mb-8">
+        <a href="{% if current_user.is_authenticated %}{{ url_for('view_quiz', quiz_id=quiz.quiz_id) }}{% else %}{{ url_for('index') }}{% endif %}"
+            class="neo-btn bg-white px-4 py-2 hover:bg-gray-100 flex items-center gap-2">
+            <span>←</span> Back
+        </a>
+        <h2 class="text-3xl font-black text-center flex-1 mx-4 truncate">{{ quiz.title }}</h2>
+        <div class="text-xl font-bold bg-neo-yellow px-4 py-2 border-[3px] border-black rounded-lg shadow-neo-sm">
+            <span id="current-card-num">1</span> / {{ questions|length }}
+        </div>
+    </div>
+
+    <!-- Flashcard Container -->
+    <div class="w-full max-w-3xl perspective-1000 mb-8 px-2">
+        <div id="flashcard" class="relative w-full h-80 sm:h-96 md:h-[400px] cursor-pointer transition-transform duration-500 transform-style-3d group focus:outline-none focus:ring-4 focus:ring-neo-blue ring-offset-4 rounded-xl" tabindex="0" aria-label="Flashcard. Press Space to flip, Left/Right arrow keys to navigate.">
+            
+            <!-- Front of card (Question) -->
+            <div class="absolute w-full h-full bg-white border-[3px] border-black shadow-neo rounded-xl backface-hidden flex flex-col justify-center items-center p-8 text-center" id="card-front">
+                <span class="absolute top-4 left-4 text-xs font-bold uppercase tracking-wider bg-neo-pink px-2 py-1 border-2 border-black rounded shadow-neo-sm shadow-none translate-x-0.5 translate-y-0.5" id="card-type">Type</span>
+                
+                <h3 class="text-2xl sm:text-3xl md:text-4xl font-black mb-6 max-h-[60%] overflow-y-auto w-full px-2" id="question-text">Question Text</h3>
+                
+                
+                <div class="absolute bottom-4 right-4 text-sm font-bold text-gray-500 animate-pulse">
+                    Click to flip ↺
+                </div>
+            </div>
+
+            <!-- Back of card (Answer) -->
+            <div class="absolute w-full h-full bg-neo-green border-[3px] border-black shadow-neo rounded-xl backface-hidden flex flex-col justify-center items-center p-8 text-center rotate-y-180" id="card-back">
+                <h4 class="text-xl sm:text-2xl font-bold mb-4 text-gray-800">Answer:</h4>
+                <div class="text-3xl sm:text-4xl md:text-5xl font-black p-4 bg-white border-4 border-black w-full shadow-neo rounded-lg overflow-y-auto max-h-[60%]" id="answer-text">
+                    Correct Answer
+                </div>
+                
+                <div class="absolute bottom-4 text-sm font-bold text-gray-700 animate-pulse">
+                    Click to flip ↺
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Navigation Controls -->
+    <div class="flex gap-4 sm:gap-8 w-full max-w-xl px-2">
+        <button id="prev-btn" class="neo-btn bg-white flex-1 py-4 text-xl sm:text-2xl hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:ring-4 focus:ring-black">
+            ⬅️ Prev
+        </button>
+        <button id="next-btn" class="neo-btn bg-neo-blue flex-1 py-4 text-xl sm:text-2xl hover:bg-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:ring-4 focus:ring-black">
+            Next ➡️
+        </button>
+    </div>
+
+    <div class="mt-8 text-center font-semibold text-gray-600">
+        <p>Keyboard Shortcuts:<br>
+        <span class="bg-gray-200 px-2 py-1 rounded border border-gray-400">Space</span> to flip &bullet; 
+        <span class="bg-gray-200 px-2 py-1 rounded border border-gray-400">←</span> <span class="bg-gray-200 px-2 py-1 rounded border border-gray-400">→</span> to navigate</p>
+    </div>
+</div>
+
+<style>
+/* CSS for 3D Flip effect */
+.perspective-1000 {
+    perspective: 1000px;
+}
+.transform-style-3d {
+    transform-style: preserve-3d;
+}
+.backface-hidden {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+.rotate-y-180 {
+    transform: rotateY(180deg);
+}
+.is-flipped {
+    transform: rotateY(180deg);
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- Store questions safely outside JS parsing to avoid IDE lint syntax errors -->
+<script id="questions-data" type="application/json">
+    {{ questions | tojson | safe }}
+</script>
+<script>
+    // Parse the JSON data safely inside JS
+    const questions = JSON.parse(document.getElementById('questions-data').textContent);
+    let currentIndex = 0;
+    
+    // DOM Elements
+    const flashcard = document.getElementById('flashcard');
+    const cardFront = document.getElementById('card-front');
+    const cardTypeBadge = document.getElementById('card-type');
+    const questionText = document.getElementById('question-text');
+    const answerText = document.getElementById('answer-text');
+    const currentNumDisplay = document.getElementById('current-card-num');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+
+    // Initialize
+    function initFlashcards() {
+        if(questions.length === 0) return;
+        renderCard(0);
+        updateButtons();
+        // Focus the card for keyboard accessibility
+        flashcard.focus();
+    }
+
+    function renderCard(index) {
+        if (flashcard.classList.contains('is-flipped')) {
+            // Flip back instantly without transition logic issues
+            flashcard.classList.remove('is-flipped');
+            setTimeout(() => updateCardContent(index), 150); // wait for flip back to hide content change
+        } else {
+            updateCardContent(index);
+        }
+    }
+
+    function updateCardContent(index) {
+        const q = questions[index];
+        questionText.textContent = q.question_text;
+        
+        let typeText = "Unknown";
+        if (q.question_type === 'multiple_choice') typeText = "Multi Choice";
+        if (q.question_type === 'true_false') typeText = "True/False";
+        if (q.question_type === 'fill_blank') typeText = "Fill Blank";
+        cardTypeBadge.textContent = typeText;
+
+
+        // Setup the Answer Side
+        let finalAnswer = q.correct_answer;
+        if (q.question_type !== 'fill_blank') {
+            // Find the actual text for the correct answer
+            if (q.correct_answer === 'A') finalAnswer = q.option_a;
+            else if (q.correct_answer === 'B') finalAnswer = q.option_b;
+            else if (q.correct_answer === 'C') finalAnswer = q.option_c;
+            else if (q.correct_answer === 'D') finalAnswer = q.option_d;
+        }
+        answerText.textContent = finalAnswer;
+        
+        // Update Counter
+        currentNumDisplay.textContent = index + 1;
+    }
+
+    function updateButtons() {
+        prevBtn.disabled = currentIndex === 0;
+        nextBtn.disabled = currentIndex === questions.length - 1;
+    }
+
+    function nextCard() {
+        if (currentIndex < questions.length - 1) {
+            currentIndex++;
+            renderCard(currentIndex);
+            updateButtons();
+        }
+    }
+
+    function prevCard() {
+        if (currentIndex > 0) {
+            currentIndex--;
+            renderCard(currentIndex);
+            updateButtons();
+        }
+    }
+
+    let isFlipping = false;
+    function toggleFlip(e) {
+        if (isFlipping) return;
+        isFlipping = true;
+        flashcard.classList.toggle('is-flipped');
+        setTimeout(() => isFlipping = false, 500); // Wait for transition to finish
+    }
+
+    // Event Listeners
+    flashcard.addEventListener('click', toggleFlip);
+    
+    // Keyboard Shortcuts
+    flashcard.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' || e.code === 'Enter') {
+            e.preventDefault();
+            toggleFlip();
+        } else if (e.code === 'ArrowRight') {
+            e.preventDefault();
+            nextCard();
+        } else if (e.code === 'ArrowLeft') {
+            e.preventDefault();
+            prevCard();
+        }
+    });
+
+    nextBtn.addEventListener('click', () => {
+        nextCard();
+        flashcard.focus();
+    });
+    
+    prevBtn.addEventListener('click', () => {
+        prevCard();
+        flashcard.focus();
+    });
+
+    // Start
+    initFlashcards();
+
+</script>
+{% endblock %}
