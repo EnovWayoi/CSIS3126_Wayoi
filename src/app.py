@@ -94,7 +94,7 @@ def load_user(user_id):
                 )
             return None
     except Exception as e:
-        print(f"Error loading user: {e}")
+        app.logger.error(f"Error loading user: {e}")
         return None
 
 
@@ -424,7 +424,7 @@ def generate_quiz():
             return redirect(url_for('edit_quiz', quiz_id=quiz_id))
 
         except Exception as e:
-            print(f"Error calling Gemini API: {e}")
+            app.logger.error(f"Error calling Gemini API: {e}")
             flash('Error generating quiz with AI. Please try again or check your API key.', 'danger')
             return render_template('generate_quiz.html')
             
@@ -434,13 +434,13 @@ def generate_quiz():
                 try:
                     os.remove(temp_path)
                 except Exception as e:
-                    print(f"Error deleting temp file {temp_path}: {e}")
+                    app.logger.error(f"Error deleting temp file {temp_path}: {e}")
                     
             if uploaded_file_obj and 'client' in locals():
                 try:
                     client.files.delete(name=uploaded_file_obj.name)
                 except Exception as e:
-                    print(f"Error deleting remote file {uploaded_file_obj.name}: {e}")
+                    app.logger.error(f"Error deleting remote file {uploaded_file_obj.name}: {e}")
 
     return render_template('generate_quiz.html')
 
