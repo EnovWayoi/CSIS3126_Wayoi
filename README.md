@@ -21,13 +21,13 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 
 ## Key Features
 
-### 👤 User Authentication
+### User Authentication
 - Secure registration and login
 - Password hashing with Werkzeug (scrypt/pbkdf2)
 - User session management
 - Personalized dashboard
 
-### 📝 Quiz Management
+### Quiz Management
 - **Create Quizzes**: Users can create and manage their own quizzes
 - **Question Types**: Support for Multiple Choice, True/False, and Fill-in-the-blank
 - **Public/Private**: Option to make quizzes public or keep them private
@@ -36,12 +36,12 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 - **Rich Editor**: Easy-to-use interface for adding and editing questions
 - **Advanced**: Independent study Flashcards view
 
-### 🤖 AI-Assisted Quiz Generation
+### AI-Assisted Quiz Generation
 - **Topic Generation**: Automatically generate full quizzes by simply entering a topic and configuring difficulty/length.
 - **Document Analysis**: Upload course materials (PDF or TXT) and let the AI extract context and formulate relevant questions directly from the text.
 - **Mix Question Types**: AI automatically determines the best mix of Multiple Choice, True/False, and Fill-in-the-Blank based on context.
 
-### 🎮 Live Game Sessions
+### Live Game Sessions
 - **Room-based Play**: Users join a lobby via room code and wait for the host to start.
 - **Real-time Socket.IO**: Live gameplay is driven by WebSocket connections to ensure minimal latency for answers and question transitions.
 - **Dynamic Time Limits**: Questions have distinct default timers based on type (MC: 20s, T/F: 15s, Fill-in-Blank: 25s).
@@ -81,19 +81,18 @@ Before you begin, ensure you have the following installed and set up on your mac
 
 ## Setup Instructions
 
-1. Install Python 3.10+ and MySQL
-2. Clone the repository and navigate to the project root directory
-3. Create a python virtual environment: `python -m venv .venv`
-4. Activate the virtual environment:
+1. Clone the repository and navigate to the project root directory
+2. Create a python virtual environment: `python -m venv .venv`
+3. Activate the virtual environment:
    - Windows: `.venv\Scripts\activate`
    - Mac/Linux: `source .venv/bin/activate`
-5. Install project dependencies: `pip install -r requirements.txt`
-6. Create the database and tables:
+4. Install project dependencies: `pip install -r requirements.txt`
+5. Create the database and tables:
    - Create the empty database: `CREATE DATABASE quiz_platform;`
    - Execute all the SQL `CREATE TABLE` scripts found in `docs/database_schema.md` to initialize your database.
-7. Create a `.env` file from the example (`cp .env.example .env`) and add your database credentials and Gemini API key.
-8. Start the application: `python src/app.py`
-9. Visit: `http://127.0.0.1:5000`
+6. Create a `.env` file from the example (`cp .env.example .env`) and add your database credentials and Gemini API key.
+7. Start the application: `python src/app.py`
+8. Visit: `http://127.0.0.1:5000`
 
 ## Database Tables
 
