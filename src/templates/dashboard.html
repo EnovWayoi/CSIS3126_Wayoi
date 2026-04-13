@@ -6,9 +6,14 @@
 <div class="mb-12">
     <div class="flex flex-wrap justify-between items-center mb-8 border-b-4 border-black pb-4">
         <h2 class="text-4xl font-black">My Quizzes 📚</h2>
-        <a href="{{ url_for('create_quiz') }}" class="neo-btn bg-neo-yellow px-6 py-3 text-lg hover:bg-yellow-300">
-            + Create New Quiz
-        </a>
+        <div class="flex gap-4">
+            <a href="{{ url_for('generate_quiz') }}" class="neo-btn bg-neo-blue px-6 py-3 text-lg hover:bg-blue-300">
+                ✨ Generate with AI
+            </a>
+            <a href="{{ url_for('create_quiz') }}" class="neo-btn bg-neo-yellow px-6 py-3 text-lg hover:bg-yellow-300">
+                + Create New Quiz
+            </a>
+        </div>
     </div>
 
     <!-- Join Game Form -->
@@ -71,9 +76,13 @@
                 {% if quiz.question_count > 0 %}
                 <a href="{{ url_for('solo_quiz', quiz_id=quiz.quiz_id) }}"
                     class="neo-btn bg-neo-green text-black hover:bg-green-300 px-3 py-2 text-sm text-center flex-1">Solo</a>
+                <a href="{{ url_for('flashcards_quiz', quiz_id=quiz.quiz_id) }}"
+                    class="neo-btn bg-neo-purple text-black hover:bg-purple-300 px-3 py-2 text-sm text-center flex-1">Cards</a>
                 {% else %}
                 <span class="neo-btn bg-gray-300 text-gray-500 px-3 py-2 text-sm text-center flex-1 cursor-not-allowed"
                     title="Add questions first">Solo</span>
+                <span class="neo-btn bg-gray-300 text-gray-500 px-3 py-2 text-sm text-center flex-1 cursor-not-allowed"
+                    title="Add questions first">Cards</span>
                 {% endif %}
                 <a href="{{ url_for('edit_quiz', quiz_id=quiz.quiz_id) }}"
                     class="neo-btn bg-white hover:bg-gray-100 px-3 py-2 text-sm text-center flex-1">Edit</a>
@@ -99,4 +108,18 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (!localStorage.getItem('tutorialSeen')) {
+            const helpModal = document.getElementById('help-modal');
+            if (helpModal) {
+                helpModal.classList.remove('hidden');
+            }
+            localStorage.setItem('tutorialSeen', 'true');
+        }
+    });
+</script>
 {% endblock %}
