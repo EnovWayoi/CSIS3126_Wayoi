@@ -41,9 +41,13 @@
                 {% if questions|length > 0 %}
                 <a href="{{ url_for('solo_quiz', quiz_id=quiz.quiz_id) }}"
                     class="neo-btn bg-neo-green text-center py-3 px-4 hover:bg-green-300">Play Solo 🎮</a>
+                <a href="{{ url_for('flashcards_quiz', quiz_id=quiz.quiz_id) }}"
+                    class="neo-btn bg-neo-purple text-center py-3 px-4 hover:bg-purple-300">Flashcards 🗂️</a>
                 {% else %}
                 <span class="neo-btn bg-gray-300 text-gray-500 text-center py-3 px-4 cursor-not-allowed"
                     title="Add questions first">Play Solo 🎮</span>
+                <span class="neo-btn bg-gray-300 text-gray-500 text-center py-3 px-4 cursor-not-allowed"
+                    title="Add questions first">Flashcards 🗂️</span>
                 {% endif %}
                 {% if quiz.is_public %}
                 <button
