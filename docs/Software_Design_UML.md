@@ -10,23 +10,25 @@ flowchart LR
     Player(["👤 Player (Unregistered/Registered)"])
     Host(["👑 Host (Registered User)"])
     System(["🖥️ System (Backend)"])
+    AI(["🤖 Gemini AI API"])
 
     %% System Boundary
     subgraph Quiz Platform System
-        UC1([Register & Login])
-        UC2([Create & Manage Quizzes])
-        UC3([Add & Edit Questions])
-        UC4([Host Live Game Session])
-        UC5([Join Game via PIN/Link])
-        UC6([Play Solo Mode])
-        UC7([Submit Answers])
-        UC8([Calculate Scores & Leaderboard])
+        UC1([UC1: Register & Login])
+        UC2([UC2: Create & Manage Quizzes])
+        UC3([UC3: Generate Quiz via AI])
+        UC4([UC4: Add & Edit Questions])
+        UC5([UC5: Host a Live Game Session])
+        UC6([UC6: Join a Game Session])
+        UC7([UC7: Submit Answers])
+        UC8([UC8: Calculate Scores & Leaderboard])
+        UC9([UC9: Play Flashcards Mode])
     end
 
     %% Relationships - Player
-    Player --> UC5
     Player --> UC6
     Player --> UC7
+    Player --> UC9
 
     %% Relationships - Host
     Host --> UC1
@@ -36,12 +38,15 @@ flowchart LR
     Host --> UC5
     Host --> UC6
     Host --> UC7
+    Host --> UC9
 
     %% Relationships - System
     UC1 --- System
-    UC4 --- System
+    UC5 --- System
     UC7 --- System
     System --> UC8
+    System --> UC3
+    UC3 --> AI
 ```
 
 ---
@@ -50,7 +55,31 @@ flowchart LR
 
 Detailed textual descriptions for the most critical use cases in the platform.
 
-### Use Case 1: Host a Live Game Session
+### UC2: Create & Manage Quizzes
+* **Actor(s):** Host (Registered User), System
+* **Preconditions:** The Host is securely logged into the platform.
+* **Main Success Scenario:**
+  1. The Host clicks the "Create Quiz" button on their dashboard.
+  2. The Host provides a quiz title, description, and status (Public/Private), then submits the form.
+  3. The System creates a new quiz record in the database, associating it with the Host's `user_id`.
+  4. The System redirects the Host to the Quiz Details page.
+  5. The Host clicks "Add Question" to begin populated the quiz with Multiple Choice, True/False, or Fill-in-the-Blank questions.
+  6. The System saves each new question securely to the database.
+
+### UC3: Generate Quiz via AI
+* **Actor(s):** Host (Registered User), System, Gemini AI API
+* **Preconditions:** The Host is logged in and navigates to the AI generation tool.
+* **Main Success Scenario:**
+  1. The Host uploads a reference document (PDF or TXT) and specifies the number of questions.
+  2. The Host clicks "Generate Quiz."
+  3. The System extracts text from the document and sends a prompt to the Gemini AI API.
+  4. The AI processes the content and returns a structured set of questions (Multiple Choice, True/False, etc.).
+  5. The System creates a new quiz and securely saves the generated questions to the database.
+  6. The System redirects the Host to the new quiz details page.
+* **Alternative Scenario (Unsupported Format):**
+  1. If the Host attempts to upload an unsupported format (like DOCX), the System prevents the upload and displays an error message.
+
+### UC5: Host a Live Game Session
 * **Actor(s):** Host (Registered User), System
 * **Preconditions:** The Host is logged in and has created at least one quiz containing one or more questions.
 * **Main Success Scenario:**
@@ -64,7 +93,7 @@ Detailed textual descriptions for the most critical use cases in the platform.
 * **Alternative Scenario (Zero Questions):**
   1. If the selected quiz has no questions, the System prevents the Host from starting the game and displays an error message ("Quiz must have at least one question to be played").
 
-### Use Case 2: Join a Game Session
+### UC6: Join a Game Session
 * **Actor(s):** Player (Any User), System
 * **Preconditions:** A Host has created an active game session, and the Player has the session PIN or an anonymous sharing link.
 * **Main Success Scenario:**
@@ -78,16 +107,16 @@ Detailed textual descriptions for the most critical use cases in the platform.
   1. The Player enters an incorrect or expired PIN.
   2. The System rejects the request and displays an error message ("Invalid PIN or Game Session not found").
 
-### Use Case 3: Create and Manage a Quiz
-* **Actor(s):** Host (Registered User), System
-* **Preconditions:** The Host is securely logged into the platform.
+### UC9: Play Flashcards Mode
+* **Actor(s):** Player (Registered or Anonymous), System
+* **Preconditions:** A public quiz exists, or the Host is reviewing their own private quiz.
 * **Main Success Scenario:**
-  1. The Host clicks the "Create Quiz" button on their dashboard.
-  2. The Host provides a quiz title, description, and status (Public/Private), then submits the form.
-  3. The System creates a new quiz record in the database, associating it with the Host's `user_id`.
-  4. The System redirects the Host to the Quiz Details page.
-  5. The Host clicks "Add Question" to begin populated the quiz with Multiple Choice, True/False, or Fill-in-the-Blank questions.
-  6. The System saves each new question securely to the database.
+  1. The Player selects a quiz and clicks "Flashcards Mode."
+  2. The System retrieves all questions associated with the quiz.
+  3. The Player views one question at a time on an interactive card.
+  4. The Player clicks the card (or presses Spacebar/arrows) to flip it and reveal the correct answer.
+  5. The Player uses UI buttons or keyboard arrows to navigate to the next or previous question.
+  6. Once all cards are reviewed, the Player can restart or return to the dashboard.
 
 ---
 
