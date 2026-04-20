@@ -51,26 +51,6 @@ A web-based interactive quiz platform for educators, trainers, and quiz enthusia
 - **Live Leaderboards**: Post-round host UI displays answer distributions, and player UIs show their live score gaps, ultimately ending with a dynamic podium.
 - **Host Controls**: Hosts control the pace of the game, manually advancing questions while tracking how many players have answered.
 
-## Current Status
-
-- ✅ Database structure created & normalized (3NF)
-- ✅ Flask application structure & routing established
-- ✅ User Authentication (Register, Login, Logout) implemented
-- ✅ Password Hashing & Security integration
-- ✅ User Dashboard custom view implemented
-- ✅ UI Overhaul: Re-designed interface with a vibrant Neo-Brutalism aesthetic (Tailwind CSS)
-- ✅ Quiz Creation & Management (CRUD)
-- ✅ Question Management (Multiple Choice, True/False, Fill-in-Blank)
-- ✅ Comprehensive Testing Framework (unittest) implemented
-- ✅ Custom Error Pages (404/500) integrated
-- ✅ Comprehensive Documentation (SRS, ERD, Progress Logs)
-- ✅ Anonymous Link Sharing & Solo Practice Mode implemented
-- ✅ Game Session & Participant Lobby Foundation established
-- ✅ Live Game Play Flow (Host controls, real-time question display, answer submissions)
-- ✅ Live Leaderboards, Answer Distribution Charts, and Result Podiums established
-- ✅ Independent study Flashcards view with keyboard navigation implemented
-- ✅ AI-Assisted Quiz Generation via Google Gemini implemented (with PDF & TXT Document Uploads)
-
 ## Prerequisites
 
 Before you begin, ensure you have the following installed and set up on your machine:
