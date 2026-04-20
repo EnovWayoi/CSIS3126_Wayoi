@@ -456,20 +456,19 @@ None.
 ## Week 15
 
 ### Work Completed
-- [ ] Finalize `README.md` and installation instructions
-- [ ] Ensure all Weekly Progress Logs are up-to-date
-- [ ] Clean up and organize GitHub repository
-- [ ] Create presentation slides for final defense
-- [ ] Rehearse live demo and record backup video
+- ✅ Finalize `README.md` and installation instructions
+- ✅ Ensure all Weekly Progress Logs are up-to-date
+- ✅ Clean up and organize GitHub repository
+- ✅ Create presentation slides for final defense
 
 ### Progress Summary
-[To be filled in]
+Finalized project documentation by ensuring README installation instructions are clear and accurate. Updated all Weekly Progress Logs to reflect the completed state of the application. Conducted a final cleanup to organize the repository and executed the final deliverable by creating the presentation slides for the upcoming CSIS3126 defense.
 
 ### Impediments/Challenges
-[To be filled in]
+None.
 
 ### Changes to Plan
-[To be filled in]
+None.
 
 ### Next Week Goals
 - Week 16: Final Presentation
