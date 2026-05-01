@@ -4,13 +4,6 @@
 
 A web-based interactive quiz platform for educators, trainers, and quiz enthusiasts.
 
-## Project Information
-
-- **Course:** CSIS3126 - Design Project I
-- **Semester:** Spring 2026
-- **Institution:** Johnson & Wales University
-- **Instructor:** Professor Jeffrey Tagen
-
 ## Technology Stack
 
 - **Backend:** Python with Flask
