@@ -2,9 +2,9 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-from flask_socketio import SocketIO, join_room, leave_room, emit
+from flask_socketio import SocketIO, join_room, emit
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
 from config.config import db_config, GEMINI_API_KEY
@@ -15,7 +15,9 @@ import string
 import socket
 import time
 import math
-from typing import List, Optional
+from typing import Optional
+import tempfile
+from werkzeug.utils import secure_filename
 
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -317,10 +319,6 @@ def generate_quiz():
                     flash('No selected file', 'danger')
                     return render_template('generate_quiz.html')
 
-                import tempfile
-                import os
-                from werkzeug.utils import secure_filename
-                
                 filename = secure_filename(file.filename)
                 allowed_extensions = {'.pdf', '.txt'}
                 ext = os.path.splitext(filename)[1].lower()
@@ -430,7 +428,7 @@ def generate_quiz():
             
         finally:
             # Clean up generated files safely
-            if temp_path and 'os' in locals() and os.path.exists(temp_path):
+            if temp_path and os.path.exists(temp_path):
                 try:
                     os.remove(temp_path)
                 except Exception as e:
@@ -1066,55 +1064,6 @@ def player_game(session_code):
         return redirect(url_for('index'))
 
 
-@app.route('/results/<session_code>')
-def game_results(session_code):
-    """Displays the final results and leaderboard for a completed game session."""
-    try:
-        with get_db_cursor(dictionary=True) as (conn, cursor):
-            cursor.execute(
-                """SELECT gp.nickname, SUM(pa.points_earned) as total_score
-                   FROM game_participants gp
-                   LEFT JOIN player_answers pa ON gp.participant_id = pa.participant_id
-                   JOIN game_sessions gs ON gp.session_id = gs.session_id
-                   WHERE gs.session_code = %s
-                   GROUP BY gp.participant_id
-                   ORDER BY total_score DESC""",
-                (session_code,)
-            )
-            leaderboard = cursor.fetchall()
-            
-            # Format for template
-            for i, p in enumerate(leaderboard):
-                if p['total_score'] is None:
-                    p['total_score'] = 0
-                    
-            # Handle participant trying to view results if they were in the game
-            participant_id = session.get('participant_id')
-            player_stats = None
-            
-            if participant_id:
-                cursor.execute(
-                    """SELECT
-                        COUNT(pa.answer_id) as total_answered,
-                        SUM(CASE WHEN pa.is_correct = 1 THEN 1 ELSE 0 END) as correct_answers,
-                        SUM(pa.points_earned) as total_points
-                       FROM player_answers pa
-                       WHERE pa.participant_id = %s""",
-                    (participant_id,)
-                )
-                player_stats = cursor.fetchone()
-                
-                # find player rank
-                for idx, p in enumerate(leaderboard):
-                    if p['nickname'] == session.get('nickname'):
-                        player_stats['rank'] = idx + 1
-                        player_stats['nickname'] = p['nickname']
-                        break
-    
-        return render_template('results.html', leaderboard=leaderboard, player_stats=player_stats, session_code=session_code)
-    except Exception as e:
-        flash(f'Error getting results: {str(e)}', 'danger')
-        return redirect(url_for('index'))        
 
 
 # =============================================
