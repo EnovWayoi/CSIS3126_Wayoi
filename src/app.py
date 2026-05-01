@@ -70,6 +70,28 @@ def get_db_cursor(dictionary=False):
             pass
 
 
+def get_quiz_and_check_access(cursor, quiz_id, require_ownership=False):
+    """
+    Helper function to fetch a quiz and check access permissions.
+    Returns (quiz, error_message, redirect_target)
+    """
+    cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
+    quiz = cursor.fetchone()
+
+    if not quiz:
+        return None, 'Quiz not found', 'index'
+
+    if require_ownership:
+        if not current_user.is_authenticated or quiz['created_by'] != int(current_user.id):
+            return None, 'You do not have permission to modify this quiz', 'dashboard'
+    else:
+        if quiz['is_public'] == 0:
+            if not current_user.is_authenticated or quiz['created_by'] != int(current_user.id):
+                return None, 'You do not have permission to view this private quiz', 'index'
+
+    return quiz, None, None
+
+
 # User class for Flask-Login
 class User(UserMixin):
     def __init__(self, user_id, username, email, role):
@@ -479,19 +501,11 @@ def create_quiz():
 def view_quiz(quiz_id):
     try:
         with get_db_cursor(dictionary=True) as (conn, cursor):
-            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-            quiz = cursor.fetchone()
-    
-            if not quiz:
-                flash('Quiz not found', 'danger')
-                return redirect(url_for('index'))
-    
-            # Check access permission: public quizzes can be viewed by anyone,
-            # private quizzes only by the creator.
-            if quiz['is_public'] == 0:
-                if not current_user.is_authenticated or quiz['created_by'] != int(current_user.id):
-                    flash('You do not have permission to view this private quiz', 'danger')
-                    return redirect(url_for('dashboard') if current_user.is_authenticated else url_for('index'))
+            quiz, error_msg, redirect_target = get_quiz_and_check_access(cursor, quiz_id, require_ownership=False)
+            
+            if error_msg:
+                flash(error_msg, 'danger')
+                return redirect(url_for(redirect_target))
     
             cursor.execute(
                 "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC",
@@ -511,19 +525,11 @@ def view_quiz(quiz_id):
 def solo_quiz(quiz_id):
     try:
         with get_db_cursor(dictionary=True) as (conn, cursor):
-            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-            quiz = cursor.fetchone()
-    
-            if not quiz:
-                flash('Quiz not found', 'danger')
-                return redirect(url_for('index'))
-    
-            # Check access permission: public quizzes can be viewed by anyone,
-            # private quizzes only by the creator.
-            if quiz['is_public'] == 0:
-                if not current_user.is_authenticated or quiz['created_by'] != int(current_user.id):
-                    flash('You do not have permission to play this private quiz', 'danger')
-                    return redirect(url_for('dashboard') if current_user.is_authenticated else url_for('index'))
+            quiz, error_msg, redirect_target = get_quiz_and_check_access(cursor, quiz_id, require_ownership=False)
+            
+            if error_msg:
+                flash(error_msg, 'danger')
+                return redirect(url_for(redirect_target))
     
             cursor.execute(
                 "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC",
@@ -551,19 +557,11 @@ def solo_quiz(quiz_id):
 def flashcards_quiz(quiz_id):
     try:
         with get_db_cursor(dictionary=True) as (conn, cursor):
-            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-            quiz = cursor.fetchone()
-    
-            if not quiz:
-                flash('Quiz not found', 'danger')
-                return redirect(url_for('index'))
-    
-            # Check access permission: public quizzes can be viewed by anyone,
-            # private quizzes only by the creator.
-            if quiz['is_public'] == 0:
-                if not current_user.is_authenticated or quiz['created_by'] != int(current_user.id):
-                    flash('You do not have permission to view this private quiz', 'danger')
-                    return redirect(url_for('dashboard') if current_user.is_authenticated else url_for('index'))
+            quiz, error_msg, redirect_target = get_quiz_and_check_access(cursor, quiz_id, require_ownership=False)
+            
+            if error_msg:
+                flash(error_msg, 'danger')
+                return redirect(url_for(redirect_target))
     
             cursor.execute(
                 "SELECT * FROM questions WHERE quiz_id = %s ORDER BY question_order ASC",
@@ -592,16 +590,11 @@ def flashcards_quiz(quiz_id):
 def edit_quiz(quiz_id):
     try:
         with get_db_cursor(dictionary=True) as (conn, cursor):
-            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-            quiz = cursor.fetchone()
-    
-            if not quiz:
-                flash('Quiz not found', 'danger')
-                return redirect(url_for('dashboard'))
-    
-            if quiz['created_by'] != int(current_user.id):
-                flash('You do not have permission to edit this quiz', 'danger')
-                return redirect(url_for('dashboard'))
+            quiz, error_msg, redirect_target = get_quiz_and_check_access(cursor, quiz_id, require_ownership=True)
+            
+            if error_msg:
+                flash(error_msg, 'danger')
+                return redirect(url_for(redirect_target))
     
             if request.method == 'POST':
                 title = request.form.get('title', '').strip()
@@ -642,13 +635,10 @@ def edit_quiz(quiz_id):
 def delete_quiz(quiz_id):
     try:
         with get_db_cursor(dictionary=True) as (conn, cursor):
-            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-            quiz = cursor.fetchone()
-    
-            if not quiz:
-                flash('Quiz not found', 'danger')
-            elif quiz['created_by'] != int(current_user.id):
-                flash('You do not have permission to delete this quiz', 'danger')
+            quiz, error_msg, redirect_target = get_quiz_and_check_access(cursor, quiz_id, require_ownership=True)
+            
+            if error_msg:
+                flash(error_msg, 'danger')
             else:
                 cursor.execute("DELETE FROM quizzes WHERE quiz_id = %s", (quiz_id,))
                 conn.commit()
@@ -670,16 +660,11 @@ def delete_quiz(quiz_id):
 def add_question(quiz_id):
     try:
         with get_db_cursor(dictionary=True) as (conn, cursor):
-            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-            quiz = cursor.fetchone()
-    
-            if not quiz:
-                flash('Quiz not found', 'danger')
-                return redirect(url_for('dashboard'))
-    
-            if quiz['created_by'] != int(current_user.id):
-                flash('You do not have permission to modify this quiz', 'danger')
-                return redirect(url_for('dashboard'))
+            quiz, error_msg, redirect_target = get_quiz_and_check_access(cursor, quiz_id, require_ownership=True)
+            
+            if error_msg:
+                flash(error_msg, 'danger')
+                return redirect(url_for(redirect_target))
     
             if request.method == 'POST':
                 question_text = request.form.get('question_text', '').strip()
@@ -750,12 +735,11 @@ def edit_question(quiz_id, question_id):
     try:
         with get_db_cursor(dictionary=True) as (conn, cursor):
             # Verify quiz ownership
-            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-            quiz = cursor.fetchone()
-    
-            if not quiz or quiz['created_by'] != int(current_user.id):
-                flash('You do not have permission to modify this quiz', 'danger')
-                return redirect(url_for('dashboard'))
+            quiz, error_msg, redirect_target = get_quiz_and_check_access(cursor, quiz_id, require_ownership=True)
+            
+            if error_msg:
+                flash(error_msg, 'danger')
+                return redirect(url_for(redirect_target))
     
             cursor.execute(
                 "SELECT * FROM questions WHERE question_id = %s AND quiz_id = %s",
@@ -776,9 +760,9 @@ def edit_question(quiz_id, question_id):
                 option_c = request.form.get('option_c', '').strip() or None
                 option_d = request.form.get('option_d', '').strip() or None
                 points = int(request.form.get('points', 1000))
-                # Default time limits: MC=15s, T/F=10s, Fill-blank=20s
-                default_times = {'multiple_choice': 15, 'true_false': 10, 'fill_blank': 20}
-                time_limit = int(request.form.get('time_limit', default_times.get(question_type, 15)))
+                # Default time limits: MC=20s, T/F=15s, Fill-blank=25s
+                default_times = {'multiple_choice': 20, 'true_false': 15, 'fill_blank': 25}
+                time_limit = int(request.form.get('time_limit', default_times.get(question_type, 20)))
     
                 if not question_text or not correct_answer:
                     flash('Question text and correct answer are required', 'danger')
@@ -825,12 +809,11 @@ def delete_question(quiz_id, question_id):
     try:
         with get_db_cursor(dictionary=True) as (conn, cursor):
             # Verify quiz ownership
-            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-            quiz = cursor.fetchone()
-    
-            if not quiz or quiz['created_by'] != int(current_user.id):
-                flash('You do not have permission to modify this quiz', 'danger')
-                return redirect(url_for('dashboard'))
+            quiz, error_msg, redirect_target = get_quiz_and_check_access(cursor, quiz_id, require_ownership=True)
+            
+            if error_msg:
+                flash(error_msg, 'danger')
+                return redirect(url_for(redirect_target))
     
             cursor.execute(
                 "DELETE FROM questions WHERE question_id = %s AND quiz_id = %s",
@@ -855,12 +838,11 @@ def delete_question(quiz_id, question_id):
 def host_game(quiz_id):
     try:
         with get_db_cursor(dictionary=True) as (conn, cursor):
-            cursor.execute("SELECT * FROM quizzes WHERE quiz_id = %s", (quiz_id,))
-            quiz = cursor.fetchone()
-    
-            if not quiz or quiz['created_by'] != int(current_user.id):
-                flash('Quiz not found or you do not have permission to host it.', 'danger')
-                return redirect(url_for('dashboard'))
+            quiz, error_msg, redirect_target = get_quiz_and_check_access(cursor, quiz_id, require_ownership=True)
+            
+            if error_msg:
+                flash(error_msg, 'danger')
+                return redirect(url_for(redirect_target))
     
             cursor.execute("SELECT COUNT(*) as count FROM questions WHERE quiz_id = %s", (quiz_id,))
             question_count = cursor.fetchone()['count']
