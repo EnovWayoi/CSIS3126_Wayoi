@@ -108,7 +108,7 @@ class GameSessionsTestCase(unittest.TestCase):
         self.login('other_host', 'password123')
         response = self.app.get(f'/host/{self.quiz_id}', follow_redirects=True)
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Quiz not found or you do not have permission', response.data)
+        self.assertIn(b'You do not have permission to modify this quiz', response.data)
 
     def test_join_game_success(self):
         # First create a session
